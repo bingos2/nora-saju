@@ -223,6 +223,15 @@
       row.forEach(item => {
         const select = document.createElement('select');
         select.id = item.id;
+                // Add placeholder
+        if (item.id === 'month' || item.id === 'day' || item.id === 'year') {
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.disabled = true;
+          placeholder.selected = true;
+          placeholder.textContent = item.id === 'month' ? 'Month' : item.id === 'day' ? 'Day' : 'Year';
+          select.appendChild(placeholder);
+        }
         item.options.forEach(opt => {
           const option = document.createElement('option');
           option.value = opt.value;
