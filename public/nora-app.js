@@ -718,45 +718,7 @@
         await showTyping(500);
         showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
           if (choice === 'Get full version') {
-              // PayPal 가기 전에 데이터 저장
-  try {
-    await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'paid_reading',
-        email: userData.email,
-        name: userData.name,
-        element: userData.element,
-        missing_element: userData.missing_element,
-        element_slug: userData.element_slug,
-        birthday: userData.birthday,
-        birth_time: userData.birth_time,
-        bubble_identity: userData.bubble_identity,
-        bubble_pattern: userData.bubble_pattern,
-        bubble_action: userData.bubble_action,
-        bubble_question: userData.bubble_question,
-        compat_1: userData.compat_1,
-        compat_2: userData.compat_2,
-        compat_3: userData.compat_3,
-        love_today: userData.love_today,
-        love_month: userData.love_month,
-        love_year: userData.love_year,
-        money_today: userData.money_today,
-        money_month: userData.money_month,
-        money_year: userData.money_year,
-        work_today: userData.work_today,
-        work_month: userData.work_month,
-        work_year: userData.work_year,
-        energy_today: userData.energy_today,
-        energy_month: userData.energy_month,
-        energy_year: userData.energy_year
-      })
-    });
-  } catch(e) {
-    console.error('Webhook error:', e);
-  }
-            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(userData.email)}`;
+            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
             await showTyping(600);
             addMessage("Let me set that up.", 'nora');
           } else {
@@ -1105,46 +1067,8 @@ const response = await fetch(WEBHOOK_URL, {
           addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
           await showTyping(800);
           addMessage("Taking you to checkout now...", 'nora');
-          await new Promise(r => setTimeout(r, 1400));
-          // PayPal 가기 전에 데이터 저장
-try {
-  await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'paid_reading',
-      email: userData.email,
-      name: userData.name,
-      element: userData.element,
-      missing_element: userData.missing_element,
-      element_slug: userData.element_slug,
-      birthday: userData.birthday,
-      birth_time: userData.birth_time,
-      bubble_identity: userData.bubble_identity,
-      bubble_pattern: userData.bubble_pattern,
-      bubble_action: userData.bubble_action,
-      bubble_question: userData.bubble_question,
-      compat_1: userData.compat_1,
-      compat_2: userData.compat_2,
-      compat_3: userData.compat_3,
-      love_today: userData.love_today,
-      love_month: userData.love_month,
-      love_year: userData.love_year,
-      money_today: userData.money_today,
-      money_month: userData.money_month,
-      money_year: userData.money_year,
-      work_today: userData.work_today,
-      work_month: userData.work_month,
-      work_year: userData.work_year,
-      energy_today: userData.energy_today,
-      energy_month: userData.energy_month,
-      energy_year: userData.energy_year
-    })
-  });
-} catch(e) {
-  console.error('Webhook error:', e);
-}
-          window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(userData.email)}`;
+          await new Promise(r => setTimeout(r, 1400));          
+          window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
         }, false);
 
       } else {
