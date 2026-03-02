@@ -1142,3 +1142,6 @@ const response = await fetch(WEBHOOK_URL, {
     }, 500);
   }
 }
+  console.log('✅ All event listeners attached');
+  checkPaidReturn();
+})();
