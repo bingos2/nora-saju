@@ -1126,20 +1126,19 @@ const response = await fetch(WEBHOOK_URL, {
 
   // Handle return from PayPal after successful payment
   function checkPaidReturn() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('paid') === 'true') {
-      window.history.replaceState({}, '', window.location.pathname);
-      setTimeout(async () => {
-        addMessage("You're all set. 🔮", 'nora');
-        await new Promise(r => setTimeout(r, 800));
-        await showTyping(900);
-        addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-        await showTyping(700);
-        addMessage("And if it hits different... you know what to do 👀", 'nora');
-      }, 1000);
-    }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('paid') === 'true') {
+    window.history.replaceState({}, '', window.location.pathname);
+    coverScreen.classList.remove('active');
+    dmScreen.classList.add('active');
+    conversationStarted = true;
+    setTimeout(async () => {
+      addMessage("You're all set. 🔮", 'nora');
+      await new Promise(r => setTimeout(r, 800));
+      await showTyping(900);
+      addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+      await showTyping(700);
+      addMessage("And if it hits different... you know what to do 👀", 'nora');
+    }, 500);
   }
-
-  console.log('✅ All event listeners attached');
-  checkPaidReturn();
-})();
+}
