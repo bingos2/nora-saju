@@ -756,7 +756,7 @@
   } catch(e) {
     console.error('Webhook error:', e);
   }
-            window.location.href = "https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ";
+            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(userData.email)}`;
             await showTyping(600);
             addMessage("Let me set that up.", 'nora');
           } else {
@@ -1144,7 +1144,7 @@ try {
 } catch(e) {
   console.error('Webhook error:', e);
 }
-          window.location.href = "https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ";
+          window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(userData.email)}`;
         }, false);
 
       } else {
