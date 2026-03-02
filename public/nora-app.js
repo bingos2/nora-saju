@@ -732,7 +732,7 @@
               await showTyping(800);
               addMessage("Taking you to checkout now...", 'nora');
               await new Promise(r => setTimeout(r, 1400));
-              window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
+              window.location.href = `https://readnora.lemonsqueezy.com/checkout/buy/eef997fb-1fba-44fb-86b8-633c3d1be542?checkout[custom][email]=${encodeURIComponent(email)}`;
             }, false);
           } else {
             await showTyping(500);
@@ -1081,7 +1081,7 @@ const response = await fetch(WEBHOOK_URL, {
           await showTyping(800);
           addMessage("Taking you to checkout now...", 'nora');
           await new Promise(r => setTimeout(r, 1400));          
-          window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
+          window.location.href = `https://readnora.lemonsqueezy.com/checkout/buy/eef997fb-1fba-44fb-86b8-633c3d1be542?checkout[custom][email]=${encodeURIComponent(email)}`;
         }, false);
 
       } else {
@@ -1124,7 +1124,7 @@ const response = await fetch(WEBHOOK_URL, {
     });
   }
 
-  // Handle return from PayPal after successful payment
+  // Handle return after successful payment
   function checkPaidReturn() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('paid') === 'true') {
