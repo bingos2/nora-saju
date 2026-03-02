@@ -718,7 +718,7 @@
         await showTyping(500);
         showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
           if (choice === 'Get full version') {
-            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
+            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ`;
             await showTyping(600);
             addMessage("Let me set that up.", 'nora');
           } else {
