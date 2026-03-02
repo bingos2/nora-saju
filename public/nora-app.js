@@ -718,7 +718,7 @@
         await showTyping(500);
         showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
           if (choice === 'Get full version') {
-            window.location.href = "https://www.paypal.com/ncp/payment/56RS4W92BFYYS";
+            window.location.href = "https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ";
             await showTyping(600);
             addMessage("Let me set that up.", 'nora');
           } else {
@@ -1068,7 +1068,7 @@ const response = await fetch(WEBHOOK_URL, {
           await showTyping(800);
           addMessage("Taking you to checkout now...", 'nora');
           await new Promise(r => setTimeout(r, 1400));
-          window.location.href = "https://www.paypal.com/ncp/payment/56RS4W92BFYYS";
+          window.location.href = "https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ";
         }, false);
 
       } else {
