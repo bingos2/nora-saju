@@ -718,9 +718,22 @@
         await showTyping(500);
         showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
           if (choice === 'Get full version') {
-            window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ`;
             await showTyping(600);
-            addMessage("Let me set that up.", 'nora');
+            addMessage("Where should I send your full reading? 📩", 'nora');
+            showTextInput('Your email', async (email) => {
+              if (!email || !email.includes('@')) {
+                await showTyping(400);
+                addMessage("Hmm, that doesn't look right — try again?", 'nora');
+                return;
+              }
+              hideAllInputs();
+              await showTyping(600);
+              addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+              await showTyping(800);
+              addMessage("Taking you to checkout now...", 'nora');
+              await new Promise(r => setTimeout(r, 1400));
+              window.location.href = `https://www.sandbox.paypal.com/ncp/payment/HDNRN8Z2MNLRJ?custom=${encodeURIComponent(email)}`;
+            }, false);
           } else {
             await showTyping(500);
             addMessage("See you tomorrow! 🌙", 'nora');
