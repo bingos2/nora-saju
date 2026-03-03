@@ -1125,49 +1125,6 @@ const response = await fetch(WEBHOOK_URL, {
             'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
           const userElement = elementKeys.find(k =>
             sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-
-          try {
-            await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'paid_reading',
-                email: email,
-                name: userData.name,
-                element: userElement,
-                missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
-                birthday: userData.birthday,
-                birth_time: userData.birth_time,
-                reaction: userData.reaction || 'Unknown',
-                // Element image slug (e.g. "Yin Wood" → "yin-wood")
-                element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                // Free reading bubbles (flat)
-                bubble_identity: sajuResults?.bubbles?.identity || '',
-                bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                bubble_action: sajuResults?.bubbles?.action || '',
-                bubble_question: sajuResults?.bubbles?.your_question || '',
-                // Compatible elements (flat)
-                compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                // Category readings (flat)
-                love_today: sajuResults?.categories?.Love?.today || '',
-                love_month: sajuResults?.categories?.Love?.this_month || '',
-                love_year: sajuResults?.categories?.Love?.this_year || '',
-                money_today: sajuResults?.categories?.Money?.today || '',
-                money_month: sajuResults?.categories?.Money?.this_month || '',
-                money_year: sajuResults?.categories?.Money?.this_year || '',
-                work_today: sajuResults?.categories?.Work?.today || '',
-                work_month: sajuResults?.categories?.Work?.this_month || '',
-                work_year: sajuResults?.categories?.Work?.this_year || '',
-                energy_today: sajuResults?.categories?.Energy?.today || '',
-                energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                timestamp: new Date().toISOString()
-              })
-            });
-          } catch(e) { console.error('Webhook error', e); }
-
               hideAllInputs();
               await showTyping(600);
               addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
