@@ -724,6 +724,9 @@
               if (!email || !email.includes('@')) {
                 await showTyping(400);
                 addMessage("Hmm, that doesn't look right — try again?", 'nora');
+                showTextInput('Your email', async (email) => {
+                  // 아래 로직 전체 반복
+                }, false);
                 return;
               }
               hideAllInputs();
@@ -1115,11 +1118,14 @@ const response = await fetch(WEBHOOK_URL, {
         await showTyping(400);
 
         showTextInput('Your email', async (email) => {
-          if (!email || !email.includes('@')) {
-            await showTyping(400);
-            addMessage("Hmm, that doesn't look right — try again?", 'nora');
-            return;
-          }
+if (!email || !email.includes('@')) {
+  await showTyping(400);
+  addMessage("Hmm, that doesn't look right — try again?", 'nora');
+  showTextInput('Your email', async (email) => {
+    // 아래 로직 전체 반복
+  }, false);
+  return;
+}
 
           const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
             'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
