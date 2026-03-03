@@ -761,12 +761,58 @@
                   return actions.order.capture().then(async function(details) {
                     paypalWrapper.remove();
                     addMessage("You're all set. 🔮", 'nora');
-                    await showTyping(900);
-                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                    await showTyping(700);
-                    addMessage("And if it hits different... you know what to do 👀", 'nora');
-                  });
-                },
+
+    // 결제 완료 후 Make로 전체 사주 데이터 전송
+    const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+      'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+    const userElement = elementKeys.find(k =>
+      sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
+    try {
+      await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'paid_reading',
+          email: email,
+          name: userData.name,
+          element: userElement,
+          missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
+          birthday: userData.birthday,
+          birth_time: userData.birth_time,
+          reaction: userData.reaction || 'Unknown',
+          element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+          bubble_identity: sajuResults?.bubbles?.identity || '',
+          bubble_pattern: sajuResults?.bubbles?.pattern || '',
+          bubble_action: sajuResults?.bubbles?.action || '',
+          bubble_question: sajuResults?.bubbles?.your_question || '',
+          compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+          compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+          compat_2: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+          love_today: sajuResults?.categories?.Love?.today || '',
+          love_month: sajuResults?.categories?.Love?.this_month || '',
+          love_year: sajuResults?.categories?.Love?.this_year || '',
+          money_today: sajuResults?.categories?.Money?.today || '',
+          money_month: sajuResults?.categories?.Money?.this_month || '',
+          money_year: sajuResults?.categories?.Money?.this_year || '',
+          work_today: sajuResults?.categories?.Work?.today || '',
+          work_month: sajuResults?.categories?.Work?.this_month || '',
+          work_year: sajuResults?.categories?.Work?.this_year || '',
+          energy_today: sajuResults?.categories?.Energy?.today || '',
+          energy_month: sajuResults?.categories?.Energy?.this_month || '',
+          energy_year: sajuResults?.categories?.Energy?.this_year || '',
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch(e) { console.error('Webhook error', e); }
+
+    await new Promise(r => setTimeout(r, 800));
+    await showTyping(900);
+    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+    await showTyping(700);
+    addMessage("And if it hits different... you know what to do 👀", 'nora');
+  });
+}
                 onError: function(err) {
                   console.error('PayPal error:', err);
                   addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
@@ -1149,12 +1195,58 @@ const response = await fetch(WEBHOOK_URL, {
                   return actions.order.capture().then(async function(details) {
                     paypalWrapper.remove();
                     addMessage("You're all set. 🔮", 'nora');
-                    await showTyping(900);
-                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                    await showTyping(700);
-                    addMessage("And if it hits different... you know what to do 👀", 'nora');
-                  });
-                },
+
+    // 결제 완료 후 Make로 전체 사주 데이터 전송
+    const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+      'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+    const userElement = elementKeys.find(k =>
+      sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
+    try {
+      await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'paid_reading',
+          email: email,
+          name: userData.name,
+          element: userElement,
+          missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
+          birthday: userData.birthday,
+          birth_time: userData.birth_time,
+          reaction: userData.reaction || 'Unknown',
+          element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+          bubble_identity: sajuResults?.bubbles?.identity || '',
+          bubble_pattern: sajuResults?.bubbles?.pattern || '',
+          bubble_action: sajuResults?.bubbles?.action || '',
+          bubble_question: sajuResults?.bubbles?.your_question || '',
+          compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+          compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+          compat_2: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+          love_today: sajuResults?.categories?.Love?.today || '',
+          love_month: sajuResults?.categories?.Love?.this_month || '',
+          love_year: sajuResults?.categories?.Love?.this_year || '',
+          money_today: sajuResults?.categories?.Money?.today || '',
+          money_month: sajuResults?.categories?.Money?.this_month || '',
+          money_year: sajuResults?.categories?.Money?.this_year || '',
+          work_today: sajuResults?.categories?.Work?.today || '',
+          work_month: sajuResults?.categories?.Work?.this_month || '',
+          work_year: sajuResults?.categories?.Work?.this_year || '',
+          energy_today: sajuResults?.categories?.Energy?.today || '',
+          energy_month: sajuResults?.categories?.Energy?.this_month || '',
+          energy_year: sajuResults?.categories?.Energy?.this_year || '',
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch(e) { console.error('Webhook error', e); }
+
+    await new Promise(r => setTimeout(r, 800));
+    await showTyping(900);
+    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+    await showTyping(700);
+    addMessage("And if it hits different... you know what to do 👀", 'nora');
+  });
+}
                 onError: function(err) {
                   console.error('PayPal error:', err);
                   addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
