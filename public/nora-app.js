@@ -736,8 +736,18 @@
               paypalWrapper.style.cssText = 'padding: 12px 0;';
               chat.insertBefore(paypalWrapper, typing);
               scrollToBottom();
-              
-              // PayPal SDK 버튼 렌더링
+              // PayPal SDK 로드 확인 후 실행
+              if (typeof paypal === 'undefined') {
+                await new Promise((resolve) => {
+                  const checkPaypal = setInterval(() => {
+                    if (typeof paypal !== 'undefined') {
+                      clearInterval(checkPaypal);
+                      resolve();
+                    }
+                  }, 100);
+                });
+              }
+            // PayPal SDK 버튼 렌더링
               paypal.Buttons({
                 createOrder: function(data, actions) {
                   return actions.order.create({
@@ -1114,7 +1124,17 @@ const response = await fetch(WEBHOOK_URL, {
               paypalWrapper.style.cssText = 'padding: 12px 0;';
               chat.insertBefore(paypalWrapper, typing);
               scrollToBottom();
-              
+              // PayPal SDK 로드 확인 후 실행
+          if (typeof paypal === 'undefined') {
+            await new Promise((resolve) => {
+              const checkPaypal = setInterval(() => {
+                if (typeof paypal !== 'undefined') {
+                  clearInterval(checkPaypal);
+                  resolve();
+                }
+              }, 100);
+            });
+          }
               // PayPal SDK 버튼 렌더링
               paypal.Buttons({
                 createOrder: function(data, actions) {
