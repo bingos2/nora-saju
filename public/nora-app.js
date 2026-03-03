@@ -702,12 +702,10 @@
   };
 }
   async function step8_sendWebhook() {
-    // Test mode: skip daily limit if URL has ?test=1
     const urlParams = new URLSearchParams(window.location.search);
     const isTestMode = urlParams.get('test') === '1';
     
     if (!isTestMode) {
-      // Check if already used today
       const lastUsed = localStorage.getItem('nora_last_used');
       const today = new Date().toDateString();
       
@@ -720,116 +718,115 @@
           if (choice === 'Get full version') {
             await showTyping(600);
             addMessage("Where should I send your full reading? 📩", 'nora');
-        
-        const askForEmail = async () => {
-          showTextInput('Your email', async (email) => {
-            if (!email || !email.includes('@')) {
-              await showTyping(400);
-              addMessage("Hmm, that doesn't look right — try again?", 'nora');
-              askForEmail();
-              return;
-            }
 
-              hideAllInputs();
-              await showTyping(600);
-              addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-              await showTyping(500);
-              // PayPal 버튼 컨테이너 생성
-              const paypalWrapper = document.createElement('div');
-              paypalWrapper.id = 'paypal-button-container';
-              paypalWrapper.style.cssText = 'padding: 12px 0;';
-              chat.insertBefore(paypalWrapper, typing);
-              scrollToBottom();
-              // PayPal SDK 로드 확인 후 실행
-              if (typeof paypal === 'undefined') {
-                await new Promise((resolve) => {
-                  const checkPaypal = setInterval(() => {
-                    if (typeof paypal !== 'undefined') {
-                      clearInterval(checkPaypal);
-                      resolve();
-                    }
-                  }, 100);
-                });
-              }
-            // PayPal SDK 버튼 렌더링
-paypal.Buttons({
-                createOrder: function(data, actions) {
-                  return actions.order.create({
-                    purchase_units: [{
-                      amount: { value: '8.99' },
-                      custom_id: email
-                    }]
-                  });
-                },
-                onApprove: function(data, actions) {
-                  return actions.order.capture().then(async function(details) {
-                    paypalWrapper.remove();
-                    // sajuResults가 없으면 localStorage에서 복원
-                    if (!sajuResults) {
-                      const saved = localStorage.getItem('nora_saju_results');
-                      if (saved) sajuResults = JSON.parse(saved);
-                    }
-                    addMessage("You're all set. 🔮", 'nora');
-
-                    const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-                      'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-                    const userElement = elementKeys.find(k =>
-                      sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-
-                    try {
-                      await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          type: 'paid_reading',
-                          email: email,
-                          name: userData.name,
-                          element: userElement,
-                          missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
-                          birthday: userData.birthday,
-                          birth_time: userData.birth_time,
-                          reaction: userData.reaction || 'Unknown',
-                          element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                          bubble_identity: sajuResults?.bubbles?.identity || '',
-                          bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                          bubble_action: sajuResults?.bubbles?.action || '',
-                          bubble_question: sajuResults?.bubbles?.your_question || '',
-                          compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                          compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                          compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                          love_today: sajuResults?.categories?.Love?.today || '',
-                          love_month: sajuResults?.categories?.Love?.this_month || '',
-                          love_year: sajuResults?.categories?.Love?.this_year || '',
-                          money_today: sajuResults?.categories?.Money?.today || '',
-                          money_month: sajuResults?.categories?.Money?.this_month || '',
-                          money_year: sajuResults?.categories?.Money?.this_year || '',
-                          work_today: sajuResults?.categories?.Work?.today || '',
-                          work_month: sajuResults?.categories?.Work?.this_month || '',
-                          work_year: sajuResults?.categories?.Work?.this_year || '',
-                          energy_today: sajuResults?.categories?.Energy?.today || '',
-                          energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                          energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                          timestamp: new Date().toISOString()
-                        })
-                      });
-                    } catch(e) { console.error('Webhook error', e); }
-
-                    await new Promise(r => setTimeout(r, 800));
-                    await showTyping(900);
-                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                    await showTyping(700);
-                    addMessage("And if it hits different... you know what to do 👀", 'nora');
-                  });
-                },
-                onError: function(err) {
-                  console.error('PayPal error:', err);
-                  addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+            const askForEmail = async () => {
+              showTextInput('Your email', async (email) => {
+                if (!email || !email.includes('@')) {
+                  await showTyping(400);
+                  addMessage("Hmm, that doesn't look right — try again?", 'nora');
+                  askForEmail();
+                  return;
                 }
-              }).render('#paypal-button-container');             
-            }, false);
-        };
+
+                hideAllInputs();
+                await showTyping(600);
+                addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+                await showTyping(500);
+
+                const paypalWrapper = document.createElement('div');
+                paypalWrapper.id = 'paypal-button-container';
+                paypalWrapper.style.cssText = 'padding: 12px 0;';
+                chat.insertBefore(paypalWrapper, typing);
+                scrollToBottom();
+
+                if (typeof paypal === 'undefined') {
+                  await new Promise((resolve) => {
+                    const checkPaypal = setInterval(() => {
+                      if (typeof paypal !== 'undefined') {
+                        clearInterval(checkPaypal);
+                        resolve();
+                      }
+                    }, 100);
+                  });
+                }
+
+                paypal.Buttons({
+                  createOrder: function(data, actions) {
+                    return actions.order.create({
+                      purchase_units: [{
+                        amount: { value: '8.99' },
+                        custom_id: email
+                      }]
+                    });
+                  },
+                  onApprove: function(data, actions) {
+                    return actions.order.capture().then(async function(details) {
+                      paypalWrapper.remove();
+                      if (!sajuResults) {
+                        const saved = localStorage.getItem('nora_saju_results');
+                        if (saved) sajuResults = JSON.parse(saved);
+                      }
+                      addMessage("You're all set. 🔮", 'nora');
+
+                      const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+                        'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+                      const userElement = elementKeys.find(k =>
+                        sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
+                      try {
+                        await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            type: 'paid_reading',
+                            email: email,
+                            name: userData.name,
+                            element: userElement,
+                            missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
+                            birthday: userData.birthday,
+                            birth_time: userData.birth_time,
+                            reaction: userData.reaction || 'Unknown',
+                            element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+                            bubble_identity: sajuResults?.bubbles?.identity || '',
+                            bubble_pattern: sajuResults?.bubbles?.pattern || '',
+                            bubble_action: sajuResults?.bubbles?.action || '',
+                            bubble_question: sajuResults?.bubbles?.your_question || '',
+                            compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+                            compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+                            compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+                            love_today: sajuResults?.categories?.Love?.today || '',
+                            love_month: sajuResults?.categories?.Love?.this_month || '',
+                            love_year: sajuResults?.categories?.Love?.this_year || '',
+                            money_today: sajuResults?.categories?.Money?.today || '',
+                            money_month: sajuResults?.categories?.Money?.this_month || '',
+                            money_year: sajuResults?.categories?.Money?.this_year || '',
+                            work_today: sajuResults?.categories?.Work?.today || '',
+                            work_month: sajuResults?.categories?.Work?.this_month || '',
+                            work_year: sajuResults?.categories?.Work?.this_year || '',
+                            energy_today: sajuResults?.categories?.Energy?.today || '',
+                            energy_month: sajuResults?.categories?.Energy?.this_month || '',
+                            energy_year: sajuResults?.categories?.Energy?.this_year || '',
+                            timestamp: new Date().toISOString()
+                          })
+                        });
+                      } catch(e) { console.error('Webhook error', e); }
+
+                      await new Promise(r => setTimeout(r, 800));
+                      await showTyping(900);
+                      addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                      await showTyping(700);
+                      addMessage("And if it hits different... you know what to do 👀", 'nora');
+                    });
+                  },
+                  onError: function(err) {
+                    console.error('PayPal error:', err);
+                    addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+                  }
+                }).render('#paypal-button-container');
+              }, false);
+            };
             askForEmail();
-          } else
+
           } else {
             await showTyping(500);
             addMessage("See you tomorrow! 🌙", 'nora');
@@ -843,23 +840,21 @@ paypal.Buttons({
     await showTyping(800);
     addMessage('Give me a sec.<br>Pulling your threads together.', 'nora');
     
-    // Show typing indicator during webhook call
     typing.style.display = 'flex';
     scrollToBottom();
     
     try {
       console.log('Sending data:', userData);
       const kstData = convertToKST(userData);
-console.log('📤 Original:', userData);
-console.log('📤 KST:', kstData);
+      console.log('📤 Original:', userData);
+      console.log('📤 KST:', kstData);
 
-const response = await fetch(WEBHOOK_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(kstData)
-});
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(kstData)
+      });
       
-      // Hide typing indicator
       typing.style.display = 'none';
       
       if (!response.ok) {
@@ -869,36 +864,26 @@ const response = await fetch(WEBHOOK_URL, {
       const result = await response.json();
       console.log('Webhook response:', result);
       
-      // Parse the response
       if (result.success && result.data) {
-        // If data is a string, parse it
         sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
       } else if (result.reading) {
-        // Alternative response format
         sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
       } else {
-        // Fallback: use result directly
         sajuResults = result;
       }
       
       console.log('Parsed sajuResults:', sajuResults);
-      // sajuResults를 localStorage에 저장
       localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
       
     } catch (error) {
       console.error('Webhook error:', error);
-      
-      // Hide typing indicator
       typing.style.display = 'none';
       
-      // Error message to user
       await showTyping(700);
       addMessage("Hmm, something didn't work.<br>Mind trying that again?", 'nora');
       
-      // Show restart button
       await showTyping(500);
       showChoices(['Start over'], () => {
-        // Reset all state
         conversationStarted = false;
         sajuResults = null;
         userData = {
@@ -913,22 +898,18 @@ const response = await fetch(WEBHOOK_URL, {
         };
         viewedCategories = [];
         
-        // Clear localStorage
         localStorage.removeItem('nora_user_data');
         localStorage.removeItem('nora_last_used');
         
-        // Clear chat and re-add typing indicator
         chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
         
-        // Go back to cover
         dmScreen.classList.remove('active');
         coverScreen.classList.add('active');
       });
       
-      return; // Stop here if error
+      return;
     }
     
-    // Save today's date (free reading used)
     const today = new Date().toDateString();
     if (!isTestMode) {
       localStorage.setItem('nora_last_used', today);
@@ -936,6 +917,7 @@ const response = await fetch(WEBHOOK_URL, {
     
     await show3Bubbles();
   }
+
 
   async function show3Bubbles() {
     // Check if sajuResults exists
