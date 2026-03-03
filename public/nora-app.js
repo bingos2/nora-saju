@@ -760,6 +760,11 @@ paypal.Buttons({
                 onApprove: function(data, actions) {
                   return actions.order.capture().then(async function(details) {
                     paypalWrapper.remove();
+                    // sajuResults가 없으면 localStorage에서 복원
+                    if (!sajuResults) {
+                      const saved = localStorage.getItem('nora_saju_results');
+                      if (saved) sajuResults = JSON.parse(saved);
+                    }
                     addMessage("You're all set. 🔮", 'nora');
 
                     const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
@@ -872,6 +877,8 @@ const response = await fetch(WEBHOOK_URL, {
       }
       
       console.log('Parsed sajuResults:', sajuResults);
+      // sajuResults를 localStorage에 저장
+      localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
       
     } catch (error) {
       console.error('Webhook error:', error);
@@ -1195,6 +1202,11 @@ paypal.Buttons({
                 onApprove: function(data, actions) {
                   return actions.order.capture().then(async function(details) {
                     paypalWrapper.remove();
+                    // sajuResults가 없으면 localStorage에서 복원
+                    if (!sajuResults) {
+                      const saved = localStorage.getItem('nora_saju_results');
+                      if (saved) sajuResults = JSON.parse(saved);
+                    }
                     addMessage("You're all set. 🔮", 'nora');
 
                     const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
