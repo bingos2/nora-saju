@@ -720,15 +720,16 @@
           if (choice === 'Get full version') {
             await showTyping(600);
             addMessage("Where should I send your full reading? 📩", 'nora');
-            showTextInput('Your email', async (email) => {
-              if (!email || !email.includes('@')) {
-                await showTyping(400);
-                addMessage("Hmm, that doesn't look right — try again?", 'nora');
-                showTextInput('Your email', async (email) => {
-                  // 아래 로직 전체 반복
-                }, false);
-                return;
-              }
+        
+        const askForEmail = async () => {
+          showTextInput('Your email', async (email) => {
+            if (!email || !email.includes('@')) {
+              await showTyping(400);
+              addMessage("Hmm, that doesn't look right — try again?", 'nora');
+              askForEmail();
+              return;
+            }
+
               hideAllInputs();
               await showTyping(600);
               addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
@@ -824,10 +825,11 @@ paypal.Buttons({
                   console.error('PayPal error:', err);
                   addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
                 }
-              }).render('#paypal-button-container');;
-
-              
+              }).render('#paypal-button-container');             
             }, false);
+        };
+            askForEmail();
+          } else
           } else {
             await showTyping(500);
             addMessage("See you tomorrow! 🌙", 'nora');
@@ -1104,7 +1106,7 @@ const response = await fetch(WEBHOOK_URL, {
     scrollToBottom();
   }
 
-  async function showUpsell() {
+async function showUpsell() {
     await showTyping(900);
     addMessage("That was the preview. The full reading gets into things I can't say in a free reading — your question, your patterns, your next 2 months specifically.", 'nora');
     
@@ -1117,117 +1119,113 @@ const response = await fetch(WEBHOOK_URL, {
         addMessage("Where should I send your full reading? 📩", 'nora');
         await showTyping(400);
 
-        showTextInput('Your email', async (email) => {
-if (!email || !email.includes('@')) {
-  await showTyping(400);
-  addMessage("Hmm, that doesn't look right — try again?", 'nora');
-  showTextInput('Your email', async (email) => {
-    // 아래 로직 전체 반복
-  }, false);
-  return;
-}
+        const askForEmail = async () => {
+          showTextInput('Your email', async (email) => {
+            if (!email || !email.includes('@')) {
+              await showTyping(400);
+              addMessage("Hmm, that doesn't look right — try again?", 'nora');
+              askForEmail();
+              return;
+            }
 
-          const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-            'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-          const userElement = elementKeys.find(k =>
-            sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-              hideAllInputs();
-              await showTyping(600);
-              addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-              await showTyping(500);
-              // PayPal 버튼 컨테이너 생성
-              const paypalWrapper = document.createElement('div');
-              paypalWrapper.id = 'paypal-button-container';
-              paypalWrapper.style.cssText = 'padding: 12px 0;';
-              chat.insertBefore(paypalWrapper, typing);
-              scrollToBottom();
-              // PayPal SDK 로드 확인 후 실행
-          if (typeof paypal === 'undefined') {
-            await new Promise((resolve) => {
-              const checkPaypal = setInterval(() => {
-                if (typeof paypal !== 'undefined') {
-                  clearInterval(checkPaypal);
-                  resolve();
-                }
-              }, 100);
-            });
-          }
-              // PayPal SDK 버튼 렌더링
-paypal.Buttons({
-                createOrder: function(data, actions) {
-                  return actions.order.create({
-                    purchase_units: [{
-                      amount: { value: '8.99' },
-                      custom_id: email
-                    }]
-                  });
-                },
-                onApprove: function(data, actions) {
-                  return actions.order.capture().then(async function(details) {
-                    paypalWrapper.remove();
-                    // sajuResults가 없으면 localStorage에서 복원
-                    if (!sajuResults) {
-                      const saved = localStorage.getItem('nora_saju_results');
-                      if (saved) sajuResults = JSON.parse(saved);
-                    }
-                    addMessage("You're all set. 🔮", 'nora');
+            hideAllInputs();
+            await showTyping(600);
+            addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+            await showTyping(500);
 
-                    const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-                      'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-                    const userElement = elementKeys.find(k =>
-                      sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+            const paypalWrapper = document.createElement('div');
+            paypalWrapper.id = 'paypal-button-container';
+            paypalWrapper.style.cssText = 'padding: 12px 0;';
+            chat.insertBefore(paypalWrapper, typing);
+            scrollToBottom();
 
-                    try {
-                      await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          type: 'paid_reading',
-                          email: email,
-                          name: userData.name,
-                          element: userElement,
-                          missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
-                          birthday: userData.birthday,
-                          birth_time: userData.birth_time,
-                          reaction: userData.reaction || 'Unknown',
-                          element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                          bubble_identity: sajuResults?.bubbles?.identity || '',
-                          bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                          bubble_action: sajuResults?.bubbles?.action || '',
-                          bubble_question: sajuResults?.bubbles?.your_question || '',
-                          compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                          compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                          compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                          love_today: sajuResults?.categories?.Love?.today || '',
-                          love_month: sajuResults?.categories?.Love?.this_month || '',
-                          love_year: sajuResults?.categories?.Love?.this_year || '',
-                          money_today: sajuResults?.categories?.Money?.today || '',
-                          money_month: sajuResults?.categories?.Money?.this_month || '',
-                          money_year: sajuResults?.categories?.Money?.this_year || '',
-                          work_today: sajuResults?.categories?.Work?.today || '',
-                          work_month: sajuResults?.categories?.Work?.this_month || '',
-                          work_year: sajuResults?.categories?.Work?.this_year || '',
-                          energy_today: sajuResults?.categories?.Energy?.today || '',
-                          energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                          energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                          timestamp: new Date().toISOString()
-                        })
-                      });
-                    } catch(e) { console.error('Webhook error', e); }
+            if (typeof paypal === 'undefined') {
+              await new Promise((resolve) => {
+                const checkPaypal = setInterval(() => {
+                  if (typeof paypal !== 'undefined') {
+                    clearInterval(checkPaypal);
+                    resolve();
+                  }
+                }, 100);
+              });
+            }
 
-                    await new Promise(r => setTimeout(r, 800));
-                    await showTyping(900);
-                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                    await showTyping(700);
-                    addMessage("And if it hits different... you know what to do 👀", 'nora');
-                  });
-                },
-                onError: function(err) {
-                  console.error('PayPal error:', err);
-                  addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
-                }
-              }).render('#paypal-button-container');
-        }, false);
+            paypal.Buttons({
+              createOrder: function(data, actions) {
+                return actions.order.create({
+                  purchase_units: [{
+                    amount: { value: '8.99' },
+                    custom_id: email
+                  }]
+                });
+              },
+              onApprove: function(data, actions) {
+                return actions.order.capture().then(async function(details) {
+                  paypalWrapper.remove();
+                  if (!sajuResults) {
+                    const saved = localStorage.getItem('nora_saju_results');
+                    if (saved) sajuResults = JSON.parse(saved);
+                  }
+                  addMessage("You're all set. 🔮", 'nora');
+
+                  const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+                    'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+                  const userElement = elementKeys.find(k =>
+                    sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
+                  try {
+                    await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        type: 'paid_reading',
+                        email: email,
+                        name: userData.name,
+                        element: userElement,
+                        missing_element: sajuResults?.bubbles?.pattern?.match(/missing element is (\w+)/i)?.[1] || 'Unknown',
+                        birthday: userData.birthday,
+                        birth_time: userData.birth_time,
+                        reaction: userData.reaction || 'Unknown',
+                        element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+                        bubble_identity: sajuResults?.bubbles?.identity || '',
+                        bubble_pattern: sajuResults?.bubbles?.pattern || '',
+                        bubble_action: sajuResults?.bubbles?.action || '',
+                        bubble_question: sajuResults?.bubbles?.your_question || '',
+                        compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+                        compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+                        compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+                        love_today: sajuResults?.categories?.Love?.today || '',
+                        love_month: sajuResults?.categories?.Love?.this_month || '',
+                        love_year: sajuResults?.categories?.Love?.this_year || '',
+                        money_today: sajuResults?.categories?.Money?.today || '',
+                        money_month: sajuResults?.categories?.Money?.this_month || '',
+                        money_year: sajuResults?.categories?.Money?.this_year || '',
+                        work_today: sajuResults?.categories?.Work?.today || '',
+                        work_month: sajuResults?.categories?.Work?.this_month || '',
+                        work_year: sajuResults?.categories?.Work?.this_year || '',
+                        energy_today: sajuResults?.categories?.Energy?.today || '',
+                        energy_month: sajuResults?.categories?.Energy?.this_month || '',
+                        energy_year: sajuResults?.categories?.Energy?.this_year || '',
+                        timestamp: new Date().toISOString()
+                      })
+                    });
+                  } catch(e) { console.error('Webhook error', e); }
+
+                  await new Promise(r => setTimeout(r, 800));
+                  await showTyping(900);
+                  addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                  await showTyping(700);
+                  addMessage("And if it hits different... you know what to do 👀", 'nora');
+                });
+              },
+              onError: function(err) {
+                console.error('PayPal error:', err);
+                addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+              }
+            }).render('#paypal-button-container');
+          }, false);
+        };
+        askForEmail();
 
       } else {
         await showTyping(700);
