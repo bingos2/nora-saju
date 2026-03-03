@@ -729,10 +729,39 @@
               hideAllInputs();
               await showTyping(600);
               addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-              await showTyping(800);
-              addMessage("Taking you to checkout now...", 'nora');
-              await new Promise(r => setTimeout(r, 1400));
-              window.location.href = `https://norasaju.lemonsqueezy.com/checkout/buy/b2d5e099-29b0-48af-9683-31d2fa139484?checkout[custom][email]=${encodeURIComponent(email)}`;;
+              await showTyping(500);
+              // PayPal 버튼 컨테이너 생성
+              const paypalWrapper = document.createElement('div');
+              paypalWrapper.id = 'paypal-button-container';
+              paypalWrapper.style.cssText = 'padding: 12px 0;';
+              chat.insertBefore(paypalWrapper, typing);
+              scrollToBottom();
+              
+              // PayPal SDK 버튼 렌더링
+              paypal.Buttons({
+                createOrder: function(data, actions) {
+                  return actions.order.create({
+                    purchase_units: [{
+                      amount: { value: '8.99' },
+                      custom_id: email
+                    }]
+                  });
+                },
+                onApprove: function(data, actions) {
+                  return actions.order.capture().then(async function(details) {
+                    paypalWrapper.remove();
+                    addMessage("You're all set. 🔮", 'nora');
+                    await showTyping(900);
+                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                    await showTyping(700);
+                    addMessage("And if it hits different... you know what to do 👀", 'nora');
+                  });
+                },
+                onError: function(err) {
+                  console.error('PayPal error:', err);
+                  addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+                }
+              }).render('#paypal-button-container');
             }, false);
           } else {
             await showTyping(500);
@@ -1075,13 +1104,42 @@ const response = await fetch(WEBHOOK_URL, {
             });
           } catch(e) { console.error('Webhook error', e); }
 
-          hideAllInputs();
-          await showTyping(600);
-          addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-          await showTyping(800);
-          addMessage("Taking you to checkout now...", 'nora');
-          await new Promise(r => setTimeout(r, 1400));          
-          window.location.href = `https://norasaju.lemonsqueezy.com/checkout/buy/b2d5e099-29b0-48af-9683-31d2fa139484?checkout[custom][email]=${encodeURIComponent(email)}`;
+              hideAllInputs();
+              await showTyping(600);
+              addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+              await showTyping(500);
+              // PayPal 버튼 컨테이너 생성
+              const paypalWrapper = document.createElement('div');
+              paypalWrapper.id = 'paypal-button-container';
+              paypalWrapper.style.cssText = 'padding: 12px 0;';
+              chat.insertBefore(paypalWrapper, typing);
+              scrollToBottom();
+              
+              // PayPal SDK 버튼 렌더링
+              paypal.Buttons({
+                createOrder: function(data, actions) {
+                  return actions.order.create({
+                    purchase_units: [{
+                      amount: { value: '8.99' },
+                      custom_id: email
+                    }]
+                  });
+                },
+                onApprove: function(data, actions) {
+                  return actions.order.capture().then(async function(details) {
+                    paypalWrapper.remove();
+                    addMessage("You're all set. 🔮", 'nora');
+                    await showTyping(900);
+                    addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                    await showTyping(700);
+                    addMessage("And if it hits different... you know what to do 👀", 'nora');
+                  });
+                },
+                onError: function(err) {
+                  console.error('PayPal error:', err);
+                  addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+                }
+              }).render('#paypal-button-container');
         }, false);
 
       } else {
