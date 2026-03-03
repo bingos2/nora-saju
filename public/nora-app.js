@@ -811,8 +811,8 @@
     addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
     await showTyping(700);
     addMessage("And if it hits different... you know what to do 👀", 'nora');
-  }),
-                }
+  });
+                }),
                 onError: function(err) {
                   console.error('PayPal error:', err);
                   addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
