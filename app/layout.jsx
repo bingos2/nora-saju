@@ -13,7 +13,6 @@ export const metadata = {
     url: 'https://readnora.com',
     type: 'website',
   },
-}
   twitter: {
     card: 'summary_large_image',
     title: 'Nora Reads You',
@@ -28,17 +27,16 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Syne:wght@700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-                import Script from 'next/script'
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17991018308"
           strategy="afterInteractive"
-          />
+        />
         <Script id="google-ads" strategy="afterInteractive">
           {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'AW-17991018308');
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-17991018308');
           `}
         </Script>
       </head>
