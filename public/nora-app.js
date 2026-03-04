@@ -250,20 +250,19 @@
     btn.textContent = 'Send';
     btn.style.width = '100%';
     btn.style.marginTop = '10px';
-    btn.onclick = () => {
+btn.onclick = () => {
       const values = {};
       config.flat().forEach(item => {
         values[item.id] = document.getElementById(item.id).value;
       });
- // 날짜 필수 검증
-  if (values.month === '' || values.day === '' || values.year === '') {
-    alert('Please select your birth date.');
-    return;
-  }
-
-  hideAllInputs();
-  callback(values);
-};
+      if (values.month === '' || values.day === '' || values.year === '') {
+        alert('Please select your birth date.');
+        return;
+      }
+      hideAllInputs();
+      callback(values);
+    };
+    dropdowns.appendChild(btn);
       
       hideAllInputs();
       callback(values);
