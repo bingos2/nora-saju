@@ -212,7 +212,7 @@
     };
   }
 
-  function showDropdowns(config, callback) {
+function showDropdowns(config, callback) {
     hideAllInputs();
     dropdowns.innerHTML = '';
     
@@ -223,7 +223,6 @@
       row.forEach(item => {
         const select = document.createElement('select');
         select.id = item.id;
-                // Add placeholder
         if (item.id === 'month' || item.id === 'day' || item.id === 'year') {
           const placeholder = document.createElement('option');
           placeholder.value = '';
@@ -250,7 +249,7 @@
     btn.textContent = 'Send';
     btn.style.width = '100%';
     btn.style.marginTop = '10px';
-btn.onclick = () => {
+    btn.onclick = () => {
       const values = {};
       config.flat().forEach(item => {
         values[item.id] = document.getElementById(item.id).value;
@@ -263,17 +262,11 @@ btn.onclick = () => {
       callback(values);
     };
     dropdowns.appendChild(btn);
-      
-      hideAllInputs();
-      callback(values);
-    };
-    dropdowns.appendChild(btn);
     
     dropdowns.classList.add('show');
     inputArea.classList.add('show');
     scrollToBottom();
   }
-
   function detectTimezone() {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
