@@ -7,13 +7,13 @@ export const metadata = {
   icons: {
     icon: '/favicon.svg',
   },
-}
   openGraph: {
     title: 'Nora Reads You',
     description: 'Korean fortune-telling that actually gets you. Find out your element.',
     url: 'https://readnora.com',
     type: 'website',
   },
+}
   twitter: {
     card: 'summary_large_image',
     title: 'Nora Reads You',
