@@ -879,17 +879,17 @@ function showDropdowns(config, callback) {
                     });
                   },
                   onError: function(err) {
-                    console.error('PayPal error:', err);
-                    addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
-                  }
-                    
-                  paypalWrapper.insertAdjacentHTML('afterbegin', `
-                  <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
-                  By completing your purchase, you agree to our 
-                  <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-                  </p>
-                  `);
-                }).render('#paypal-button-container');
+                console.error('PayPal error:', err);
+                addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+              }
+            }).render('#paypal-button-container');
+
+            paypalWrapper.insertAdjacentHTML('afterbegin', `
+              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
+                By completing your purchase, you agree to our 
+                <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
+              </p>
+            `);
               }, false);
             };
             askForEmail();
@@ -1294,15 +1294,14 @@ async function showUpsell() {
                 console.error('PayPal error:', err);
                 addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
               }
+            }).render('#paypal-button-container');
 
-                paypalWrapper.insertAdjacentHTML('afterbegin', `
-                <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
+            paypalWrapper.insertAdjacentHTML('afterbegin', `
+              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
                 By completing your purchase, you agree to our 
                 <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-                </p>
-                `);
-
-            }).render('#paypal-button-container');
+              </p>
+            `);
           }, false);
         };
         askForEmail();
