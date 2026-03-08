@@ -854,33 +854,40 @@ function showDropdowns(config, callback) {
                       await showTyping(700);
                       addMessage("And if it hits different... you know what to do 👀", 'nora');
                       await showTyping(800);
-showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
-  if (choice === 'Start a new reading') {
-    conversationStarted = false;
-    sajuResults = null;
-    viewedCategories = [];
-    localStorage.removeItem('nora_last_used');
-    chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
-    typing = document.getElementById('typing');
-    dmScreen.classList.remove('active');
-    coverScreen.classList.add('active');
-  } else {
-    const baseUrl = 'https://readnora.com';
-    const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-    if (navigator.share) {
-      try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-    } else {
-      await navigator.clipboard.writeText(shareText);
-      addMessage("Copied! Send it to someone 👀", 'nora');
-    }
-  }
-});
+                      
+                      showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+                        if (choice === 'Start a new reading') {
+                          conversationStarted = false;
+                          sajuResults = null;
+                          viewedCategories = [];
+                          localStorage.removeItem('nora_last_used');
+                          chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+                          typing = document.getElementById('typing');
+                          dmScreen.classList.remove('active');
+                          coverScreen.classList.add('active');
+                        } else {
+                          const baseUrl = 'https://readnora.com';
+                          const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
+                          if (navigator.share) {
+                            try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
+                          } else {
+                            await navigator.clipboard.writeText(shareText);
+                            addMessage("Copied! Send it to someone 👀", 'nora');
+                          }
+                        }
+                      });
                     });
                   },
                   onError: function(err) {
                     console.error('PayPal error:', err);
                     addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
                   }
+                  document.getElementById('paypal-button-container').insertAdjacentHTML('beforebegin', `
+                  <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;">
+                  By completing your purchase, you agree to our 
+                  <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
+                  </p>
+                  `);                  
                 }).render('#paypal-button-container');
               }, false);
             };
@@ -1258,33 +1265,40 @@ async function showUpsell() {
                   await showTyping(700);
                   addMessage("And if it hits different... you know what to do 👀", 'nora');
                   await showTyping(800);
-showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
-  if (choice === 'Start a new reading') {
-    conversationStarted = false;
-    sajuResults = null;
-    viewedCategories = [];
-    localStorage.removeItem('nora_last_used');
-    chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
-    typing = document.getElementById('typing');
-    dmScreen.classList.remove('active');
-    coverScreen.classList.add('active');
-  } else {
-    const baseUrl = 'https://readnora.com';
-    const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-    if (navigator.share) {
-      try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-    } else {
-      await navigator.clipboard.writeText(shareText);
-      addMessage("Copied! Send it to someone 👀", 'nora');
-    }
-  }
-});
+
+                  showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+                    if (choice === 'Start a new reading') {
+                      conversationStarted = false;
+                      sajuResults = null;
+                      viewedCategories = [];
+                      localStorage.removeItem('nora_last_used');
+                      chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+                      typing = document.getElementById('typing');
+                      dmScreen.classList.remove('active');
+                      coverScreen.classList.add('active');
+                    } else {
+                      const baseUrl = 'https://readnora.com';
+                      const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
+                      if (navigator.share) {
+                        try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
+                      } else {
+                        await navigator.clipboard.writeText(shareText);
+                        addMessage("Copied! Send it to someone 👀", 'nora');
+                      }
+                    }
+                  });
                 });
               },
               onError: function(err) {
                 console.error('PayPal error:', err);
                 addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
               }
+              document.getElementById('paypal-button-container').insertAdjacentHTML('beforebegin', `
+              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;">
+              By completing your purchase, you agree to our 
+              <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
+              </p>
+              `);
             }).render('#paypal-button-container');
           }, false);
         };
