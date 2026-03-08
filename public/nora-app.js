@@ -882,12 +882,7 @@ function showDropdowns(config, callback) {
                     console.error('PayPal error:', err);
                     addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
                   }
-                  document.getElementById('paypal-button-container').insertAdjacentHTML('beforebegin', `
-                  <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;">
-                  By completing your purchase, you agree to our 
-                  <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-                  </p>
-                  `);                  
+               
                 }).render('#paypal-button-container');
               }, false);
             };
@@ -1293,12 +1288,7 @@ async function showUpsell() {
                 console.error('PayPal error:', err);
                 addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
               }
-              document.getElementById('paypal-button-container').insertAdjacentHTML('beforebegin', `
-              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;">
-              By completing your purchase, you agree to our 
-              <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-              </p>
-              `);
+
             }).render('#paypal-button-container');
           }, false);
         };
