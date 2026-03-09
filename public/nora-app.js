@@ -718,6 +718,10 @@ function showDropdowns(config, callback) {
         await showTyping(500);
         showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
           if (choice === 'Get full version') {
+            gtag('event', 'upsell_clicked', {
+              event_category: 'conversion',
+              event_label: 'get_full_version'
+            });
             // sajuResults 없으면 백그라운드에서 다시 받기
             if (!sajuResults) {
               const saved = localStorage.getItem('nora_saju_results');
@@ -793,7 +797,7 @@ function showDropdowns(config, callback) {
                       purchase_units: [{
                         amount: { value: '8.99' },
                         custom_id: email
-                      }]
+                      }],
                     });
                   },
                   onApprove: function(data, actions) {
@@ -1164,6 +1168,10 @@ async function showUpsell() {
     
     showChoices(['Yes, show me', 'Not now'], async (choice) => {
       if (choice === 'Yes, show me') {
+        gtag('event', 'upsell_clicked', {
+          event_category: 'conversion',
+          event_label: 'yes_show_me'
+        });
         await showTyping(700);
         addMessage("Where should I send your full reading? 📩", 'nora');
         await showTyping(400);
