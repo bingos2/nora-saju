@@ -799,7 +799,8 @@ function showDropdowns(config, callback) {
                         custom_id: email
                       }],
                       application_context: {
-                        shipping_preference: 'NO_SHIPPING'
+                        shipping_preference: 'NO_SHIPPING',
+                        user_action: 'PAY_NOW'
                       }                    
                     });
                   },
@@ -1216,11 +1217,11 @@ async function showUpsell() {
                   purchase_units: [{
                     amount: { value: '8.99' },
                     custom_id: email
-                  }]
+                  }],
                   application_context: {
-                  shipping_preference: 'NO_SHIPPING'
-                }        
-                }
+                    shipping_preference: 'NO_SHIPPING',
+                    user_action: 'PAY_NOW'
+                  }
                 });
               },
               onApprove: function(data, actions) {
