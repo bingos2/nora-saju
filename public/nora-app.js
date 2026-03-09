@@ -798,6 +798,9 @@ function showDropdowns(config, callback) {
                         amount: { value: '8.99' },
                         custom_id: email
                       }],
+                      application_context: {
+                        shipping_preference: 'NO_SHIPPING'
+                      }                    
                     });
                   },
                   onApprove: function(data, actions) {
@@ -1214,6 +1217,10 @@ async function showUpsell() {
                     amount: { value: '8.99' },
                     custom_id: email
                   }]
+                  application_context: {
+                  shipping_preference: 'NO_SHIPPING'
+                }        
+                }
                 });
               },
               onApprove: function(data, actions) {
