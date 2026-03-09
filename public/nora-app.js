@@ -913,10 +913,26 @@ function showDropdowns(config, callback) {
     }
     
     await showTyping(800);
-    addMessage('Give me a sec.<br>Pulling your threads together.', 'nora');
-    
+    addMessage('Give me a sec.', 'nora');
+
     typing.style.display = 'flex';
     scrollToBottom();
+
+    const loadingMessages = [
+      "Reading the year you were born...",
+      "Mapping your four pillars...",
+      "Calculating your element...",
+      "Looking at your patterns...",
+      "Almost there..."
+    ];
+
+    let msgIndex = 0;
+    const loadingInterval = setInterval(() => {
+      if (msgIndex < loadingMessages.length) {
+        addMessage(loadingMessages[msgIndex], 'nora');
+        msgIndex++;
+      }
+    }, 3000);
     
     try {
       console.log('Sending data:', userData);
@@ -928,6 +944,14 @@ function showDropdowns(config, callback) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(kstData)
+      });
+
+      clearInterval(loadingInterval);
+      const messages = chat.querySelectorAll('.message.nora');
+      messages.forEach(msg => {
+        if (msg.querySelector('.bubble')?.textContent.includes('...')) {
+          msg.remove();
+        }
       });
       
       typing.style.display = 'none';
@@ -952,6 +976,14 @@ function showDropdowns(config, callback) {
       
     } catch (error) {
       console.error('Webhook error:', error);
+      
+      clearInterval(loadingInterval);
+      const messages = chat.querySelectorAll('.message.nora');
+      messages.forEach(msg => {
+        if (msg.querySelector('.bubble')?.textContent.includes('...')) {
+          msg.remove();
+        }
+      });
       typing.style.display = 'none';
       
       await showTyping(700);
