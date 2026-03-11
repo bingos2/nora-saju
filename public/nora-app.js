@@ -811,6 +811,7 @@ function showDropdowns(config, callback) {
                         const saved = localStorage.getItem('nora_saju_results');
                         if (saved) sajuResults = JSON.parse(saved);
                       }
+
                       addMessage("You're all set. 🔮", 'nora');
 
                       const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
@@ -1263,6 +1264,7 @@ async function showUpsell() {
                     const saved = localStorage.getItem('nora_saju_results');
                     if (saved) sajuResults = JSON.parse(saved);
                   }
+
                   addMessage("You're all set. 🔮", 'nora');
 
                   const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
@@ -1356,8 +1358,7 @@ async function showUpsell() {
 
       } else {
         await showTyping(700);
-        addMessage("No pressure. 🫶<br>Before you go — want me to send you a weekly nudge based on your chart?", 'nora');
-
+        addMessage("No pressure. 🫶<br>Before you go — want me to send you a weekly nudge based on your chart?<br><span style='font-size:11px;opacity:0.5;line-height:2;'>By submitting your email, you agree to our <a href='/privacy' target='_blank' style='color:#C9A9E9;'>Privacy Policy</a></span>", 'nora');
         await showTyping(500);
         showTextInput('Your email (skip if you want)', async (email) => {
           if (email && email.includes('@')) {
@@ -1403,6 +1404,7 @@ async function showUpsell() {
     dmScreen.classList.add('active');
     conversationStarted = true;
     setTimeout(async () => {
+
       addMessage("You're all set. 🔮", 'nora');
       await new Promise(r => setTimeout(r, 800));
       await showTyping(900);
