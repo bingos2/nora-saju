@@ -1040,10 +1040,10 @@ function showDropdowns(config, callback) {
     await showTyping(600);
     addMessage("Does that sound like you?", 'nora');
 
-    showChoices(['😮 That's exactly it', '🤔 Somewhat', '😐 Not me'], async (reaction) => {
+    showChoices(["😮 That's exactly it", '🤔 Somewhat', '😐 Not me'], async (reaction) => {
       userData.reaction = reaction;
 
-      if (reaction === '😮 That's exactly it') {
+      if (reaction === "😮 That's exactly it") {
         await showTyping(600);
         addMessage(`Yeah. Your chart doesn't lie. 🔮`, 'nora');
         await proceedToPhase2(name);
@@ -1083,7 +1083,7 @@ function showDropdowns(config, callback) {
         addMessage(`${name}, what's been sitting heaviest lately?`, 'nora');
 
         showChoices(
-          ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There's a specific person'],
+          ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', "👤 There's a specific person"],
           async (area) => { await showAreaReading(area); }
         );
       }
@@ -1124,7 +1124,7 @@ function showDropdowns(config, callback) {
     addMessage(`What's been sitting heaviest lately?`, 'nora');
 
     showChoices(
-      ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There's a specific person'],
+      ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', "👤 There's a specific person"],
       async (area) => { await showAreaReading(area); }
     );
   }
@@ -1272,7 +1272,7 @@ async function showUpsell() {
     addMessage("Over 2,400 people have read theirs this month.", 'nora');
 
     await showTyping(700);
-    addMessage("Most say the same thing after.<br><em>"I wish I saw this sooner."</em> 🔮", 'nora');
+    addMessage('Most say the same thing after.<br><em>"I wish I saw this sooner."</em> 🔮', 'nora');
 
     await showTyping(800);
     addMessage(`Your reading is ready, ${name}. ✨`, 'nora');
