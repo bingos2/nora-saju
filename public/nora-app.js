@@ -1031,16 +1031,7 @@ function showDropdowns(config, callback) {
 
     const name = userData.name;
 
-    // PHASE 1 — identity: 이름 먼저, 그 다음 identity bubble
-    await showTyping(700);
-    addMessage(`${name}.`, 'nora');
-
-    await showTyping(600);
-    addMessage("You already know what I'm going to say.", 'nora');
-
-    await showTyping(700);
-    addMessage("You've known for a while.", 'nora');
-
+    // PHASE 1 — identity bubble 바로 시작
     await showTyping(800);
     addMessage(sajuResults.bubbles.identity, 'nora');
 
