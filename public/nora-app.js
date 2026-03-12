@@ -828,7 +828,7 @@ function showDropdowns(config, callback) {
                             email: email,
                             name: userData.name,
                             element: userElement,
-                            missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                            missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
                             birthday: userData.birthday,
                             birth_time: userData.birth_time,
                             reaction: userData.reaction || 'Unknown',
@@ -915,10 +915,7 @@ function showDropdowns(config, callback) {
     scrollToBottom();
 
     const loadingMessages = [
-      "Reading the year you were born...",
       "Mapping your four pillars...",
-      "Calculating your element...",
-      "Looking at your patterns...",
       "Almost there..."
     ];
 
@@ -1031,7 +1028,7 @@ function showDropdowns(config, callback) {
 
     const name = userData.name;
 
-    // PHASE 1 — identity bubble 바로 시작
+    // PHASE 1 — identity 버블
     await showTyping(800);
     addMessage(sajuResults.bubbles.identity, 'nora');
 
@@ -1042,72 +1039,118 @@ function showDropdowns(config, callback) {
       userData.reaction = reaction;
 
       if (reaction === '😮 That\'s exactly it') {
+        // 이름 호출 1회 (PHASE 1)
         await showTyping(600);
-        addMessage(`${name}. Yeah. Your chart doesn't lie. 🔮`, 'nora');
+        addMessage(`Yeah. Your chart doesn't lie. 🔮`, 'nora');
+        await proceedToPhase2(name);
+
       } else if (reaction === '🤔 Somewhat') {
         await showTyping(600);
-        addMessage(`That's actually really common, ${name} — the full reading usually fills in what doesn't click yet.`, 'nora');
+        addMessage(`That's actually really common — the full reading usually fills in what doesn't click yet.`, 'nora');
+        await proceedToPhase2(name);
+
       } else {
-        await showTyping(600);
-        addMessage(`Interesting, ${name}. Sometimes the details land harder than the overview does.`, 'nora');
-      }
-
-      // PHASE 2 — pattern: 이름 포함, what만, why는 잠금
-      await showTyping(900);
-      addMessage(`${name}, that's not a coincidence.<br>It's in your birth energy.`, 'nora');
-
-      await showTyping(800);
-      const patternWhat = sajuResults.bubbles.pattern_what
-        || (sajuResults.bubbles.pattern
-            ? sajuResults.bubbles.pattern.split('.')[0] + '.'
-            : null);
-      if (patternWhat) {
-        addMessage(patternWhat, 'nora');
+        // Not me → drill-down: 이탈 방지
         await showTyping(700);
-        addMessage(`The reason why — that's specific to you, ${name}.<br>It's in the full reading. 🔒`, 'nora');
-      } else if (sajuResults.bubbles.pattern) {
-        addMessage(sajuResults.bubbles.pattern, 'nora');
-      }
+        addMessage(`Interesting. Sometimes the details land harder than the overview does.`, 'nora');
 
-      // PHASE 3 — current cycle: 이름 포함
-      await showTyping(900);
-      const timing = sajuResults.bubbles.current_cycle_timing || sajuResults.current_cycle_timing;
-      const cycleText = sajuResults.bubbles.current_cycle || sajuResults.current_cycle;
+        await showTyping(900);
+        addMessage(`${name}, that's not a coincidence.<br>It's in your birth energy.`, 'nora'); // 이름 호출 1회
 
-      if (timing === 'now') {
-        addMessage(`And ${name} —<br>something is moving in your chart right now.<br>Not eventually. <em>Now.</em> 🌀`, 'nora');
-      } else if (timing === 'soon') {
-        addMessage(`And ${name} —<br>something is building in your chart.<br>It's not here yet — but it's close. 🌙`, 'nora');
-      }
-
-      if (cycleText) {
-        await showTyping(700);
-        addMessage(cycleText, 'nora');
-      }
-
-      // action 버블
-      if (sajuResults.bubbles.action) {
         await showTyping(800);
-        addMessage(sajuResults.bubbles.action, 'nora');
-      }
-
-      // PHASE 4 — 영역 선택: 이름 포함
-      await showTyping(800);
-      addMessage(`${name}, what's been sitting heaviest lately?`, 'nora');
-
-      showChoices(
-        ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There\'s a specific person'],
-        async (area) => {
-          await showAreaReading(area);
+        const patternWhat = sajuResults.bubbles.pattern_what
+          || (sajuResults.bubbles.pattern
+              ? sajuResults.bubbles.pattern.split('.')[0] + '.'
+              : null);
+        if (patternWhat) {
+          addMessage(patternWhat, 'nora');
         }
-      );
+
+        await showTyping(700);
+        addMessage(`The reason why — that's in the full reading. 🔒`, 'nora');
+
+        // PHASE 3 cycle 힌트 먼저 보여줌
+        await showTyping(900);
+        const timingDrill = sajuResults.bubbles.current_cycle_timing || sajuResults.current_cycle_timing;
+        const cycleDrill = sajuResults.bubbles.current_cycle || sajuResults.current_cycle;
+        if (timingDrill === 'now') {
+          addMessage(`And — something is moving in your chart right now. Not eventually. <em>Now.</em> 🌀`, 'nora');
+        } else {
+          addMessage(`And — something is building in your chart. It's not here yet, but it's close. 🌙`, 'nora');
+        }
+        if (cycleDrill) {
+          await showTyping(700);
+          addMessage(cycleDrill, 'nora');
+        }
+
+        // drill-down 질문
+        await showTyping(900);
+        addMessage(`${name}, what's been sitting heaviest lately?`, 'nora'); // 이름 호출 2회
+
+        showChoices(
+          ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There\'s a specific person'],
+          async (area) => {
+            await showAreaReading(area);
+          }
+        );
+      }
     });
   }
 
-  async function showAreaReading(area) {
-    const name = userData.name;
+  async function proceedToPhase2(name) {
+    // PHASE 2 — pattern: what만, why는 잠금
+    await showTyping(900);
+    addMessage(`That's not a coincidence.<br>It's in your birth energy.`, 'nora');
 
-    // 영역별 연결 멘트 — 패턴과 연결되는 느낌
+    await showTyping(800);
+    const patternWhat = sajuResults.bubbles.pattern_what
+      || (sajuResults.bubbles.pattern
+          ? sajuResults.bubbles.pattern.split('.')[0] + '.'
+          : null);
+    if (patternWhat) {
+      addMessage(patternWhat, 'nora');
+      await showTyping(700);
+      addMessage(`The reason why — that's in the full reading. 🔒`, 'nora');
+    } else if (sajuResults.bubbles.pattern) {
+      addMessage(sajuResults.bubbles.pattern, 'nora');
+    }
+
+    // PHASE 3 — current cycle (이름 없음)
+    await showTyping(900);
+    const timing = sajuResults.bubbles.current_cycle_timing || sajuResults.current_cycle_timing;
+    const cycleText = sajuResults.bubbles.current_cycle || sajuResults.current_cycle;
+
+    if (timing === 'now') {
+      addMessage(`Something is moving in your chart right now.<br>Not eventually. <em>Now.</em> 🌀`, 'nora');
+    } else if (timing === 'soon') {
+      addMessage(`Something is building in your chart.<br>It's not here yet — but it's close. 🌙`, 'nora');
+    }
+
+    if (cycleText) {
+      await showTyping(700);
+      addMessage(cycleText, 'nora');
+    }
+
+    // action 버블
+    if (sajuResults.bubbles.action) {
+      await showTyping(800);
+      addMessage(sajuResults.bubbles.action, 'nora');
+    }
+
+    // PHASE 4 — 영역 선택 (이름 없음)
+    await showTyping(800);
+    addMessage(`What's been sitting heaviest lately?`, 'nora');
+
+    showChoices(
+      ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There\'s a specific person'],
+      async (area) => {
+        await showAreaReading(area);
+      }
+    );
+  }
+
+  async function showAreaReading(area) {
+    // 영역별 연결 멘트
     const areaMap = {
       '💗 Love & relationships': 'Love',
       '💰 Money & career': 'Money',
@@ -1116,16 +1159,16 @@ function showDropdowns(config, callback) {
     };
 
     const areaHooks = {
-      '💗 Love & relationships': `${name}. Yeah.<br>That's the one your chart has the most to say about.<br>And it connects directly to that pattern I mentioned.`,
-      '💰 Money & career': `${name}. Yeah.<br>Your chart has something specific here.<br>And it connects directly to that pattern I mentioned.`,
-      '⚡ Just my overall energy': `${name}. Makes sense.<br>Your energy pattern is the root of everything else.<br>Let's look at what's actually going on.`,
-      "👤 There's a specific person": `${name}. Yeah.<br>Your chart actually has a lot to say about the people you pull toward you.<br>And why.`
+      '💗 Love & relationships': `Yeah.<br>That's the one your chart has the most to say about.`,
+      '💰 Money & career': `Yeah.<br>Your chart has something specific here.`,
+      '⚡ Just my overall energy': `Makes sense.<br>Your energy pattern is the root of everything else.`,
+      "👤 There's a specific person": `Yeah.<br>Your chart has a lot to say about the people you pull toward you.`
     };
 
     const category = areaMap[area] || 'Energy';
 
     await showTyping(900);
-    addMessage(areaHooks[area] || `${name}, let's look at this.`, 'nora');
+    addMessage(areaHooks[area] || `Let's look at this.`, 'nora');
 
     const reading = sajuResults.categories?.[category];
     if (reading?.today) {
@@ -1134,14 +1177,10 @@ function showDropdowns(config, callback) {
     }
 
     await showTyping(800);
-    addMessage(`That's what I see for you right now, ${name}.`, 'nora');
+    addMessage(`That's what I see for right now.`, 'nora');
 
-    // Share 버튼 — reading 내용 바로 직후 (공유할 만한 내용 봤을 때)
-    await showTyping(600);
-    addMessage("If that hit — send it to someone who needs to hear it too. 👀", 'nora');
-    showShareButton();
-
-    // Upsell
+    // Share 버튼 없음 — 결제 후로만
+    // Upsell 바로
     await showTyping(700);
     await showUpsell();
   }
@@ -1149,7 +1188,6 @@ function showDropdowns(config, callback) {
   async function showCategoryReading(category) {
     await showTyping(700);
 
-    // 각 카테고리별 시작 문구
     const intros = {
       'Love': `${category} - let's look at your heart.`,
       'Money': `${category} - let's talk about your flow.`,
@@ -1161,21 +1199,13 @@ function showDropdowns(config, callback) {
     
     const reading = sajuResults.categories[category];
     
-    // FREE: Only show "today"
     await showTyping(900);
     addMessage(reading.today, 'nora');
     
-    // Teaser for more
     await showTyping(1000);
-    addMessage("That's what I see for today.", 'nora');
-
-    // Social hook — share nudge before upsell
-    await showTyping(800);
-    addMessage("If this hit different, send it to a friend. Their reaction is always 👀", 'nora');
-    showShareButton();
+    addMessage("That's what I see for right now.", 'nora');
 
     await showTyping(600);
-    // Show upgrade option
     await showUpsell();
   }
 
@@ -1262,18 +1292,15 @@ function showDropdowns(config, callback) {
 async function showUpsell() {
     const name = userData.name;
 
-    // PHASE 5 — 결제 직전
+    // PHASE 5 — 결제 직전: 이름 1회만 (마지막 CTA에서)
     await showTyping(900);
-    addMessage(`${name}.`, 'nora');
+    addMessage("Over 2,400 people have read theirs this month.", 'nora');
 
     await showTyping(700);
-    addMessage("Most people go their whole lives without anyone seeing this clearly. 🌌", 'nora');
+    addMessage("Most say the same thing after.<br><em>\"I wish I saw this sooner.\"</em> 🔮", 'nora');
 
     await showTyping(800);
-    addMessage(`Your reading is ready, ${name}. ✨`, 'nora');
-
-    await showTyping(900);
-    addMessage("People usually say the same thing after they read theirs.<br><em>I wish I saw this sooner.</em> 🔮", 'nora');
+    addMessage(`Your reading is ready, ${name}. ✨`, 'nora'); // 이름 호출 — PHASE 5에서 1회
 
     await showTyping(700);
 
@@ -1342,7 +1369,7 @@ async function showUpsell() {
                 email: email,
                 name: name,
                 element: userElement,
-                missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
                 birthday: userData.birthday,
                 birth_time: userData.birth_time,
                 reaction: userData.reaction || 'Unknown',
@@ -1430,7 +1457,7 @@ async function showUpsell() {
                     email: email,
                     name: name,
                     element: userElement,
-                    missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                    missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
                     birthday: userData.birthday,
                     birth_time: userData.birth_time,
                     reaction: userData.reaction || 'Unknown',
