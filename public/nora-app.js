@@ -953,17 +953,22 @@ function showDropdowns(config, callback) {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      const result = await response.json();
-      console.log('Webhook response:', result);
-      
-      if (result.success && result.data) {
+      const rawText = await response.text();
+      console.log('Webhook raw response:', rawText);
+
+      let result = null;
+      try { result = JSON.parse(rawText); } catch(e) {}
+
+      if (result && result.bubbles) {
+        sajuResults = result;
+      } else if (result && result.success && result.data) {
         sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-      } else if (result.reading) {
+      } else if (result && result.reading) {
         sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
       } else {
-        sajuResults = result;
+        throw new Error('Make returned: ' + rawText.substring(0, 100));
       }
-      
+
       console.log('Parsed sajuResults:', sajuResults);
       localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
       
