@@ -828,7 +828,7 @@ function showDropdowns(config, callback) {
                             email: email,
                             name: userData.name,
                             element: userElement,
-                            missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
+                            missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
                             birthday: userData.birthday,
                             birth_time: userData.birth_time,
                             reaction: userData.reaction || 'Unknown',
@@ -860,10 +860,21 @@ function showDropdowns(config, callback) {
                       await new Promise(r => setTimeout(r, 800));
                       await showTyping(900);
                       addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                      await showTyping(700);
+                      addMessage("And if it hits different... you know what to do 👀", 'nora');
                       await showTyping(800);
-
-                      showChoices(['Send Nora to a friend', 'Just me for now'], async (choice) => {
-                        if (choice === 'Send Nora to a friend') {
+                      
+                      showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+                        if (choice === 'Start a new reading') {
+                          conversationStarted = false;
+                          sajuResults = null;
+                          viewedCategories = [];
+                          localStorage.removeItem('nora_last_used');
+                          chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+                          typing = document.getElementById('typing');
+                          dmScreen.classList.remove('active');
+                          coverScreen.classList.add('active');
+                        } else {
                           const baseUrl = 'https://readnora.com';
                           const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
                           if (navigator.share) {
@@ -872,12 +883,6 @@ function showDropdowns(config, callback) {
                             await navigator.clipboard.writeText(shareText);
                             addMessage("Copied! Send it to someone 👀", 'nora');
                           }
-                        } else {
-                          await showTyping(600);
-                          addMessage("Enjoy your reading. 🔮", 'nora');
-                          await showTyping(700);
-                          addMessage("You know where to find me. 🌙", 'nora');
-                          hideAllInputs();
                         }
                       });
                     });
@@ -915,7 +920,10 @@ function showDropdowns(config, callback) {
     scrollToBottom();
 
     const loadingMessages = [
+      "Reading the year you were born...",
       "Mapping your four pillars...",
+      "Calculating your element...",
+      "Looking at your patterns...",
       "Almost there..."
     ];
 
@@ -953,22 +961,17 @@ function showDropdowns(config, callback) {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      const rawText = await response.text();
-      console.log('Webhook raw response:', rawText);
-
-      let result = null;
-      try { result = JSON.parse(rawText); } catch(e) {}
-
-      if (result && result.bubbles) {
-        sajuResults = result;
-      } else if (result && result.success && result.data) {
+      const result = await response.json();
+      console.log('Webhook response:', result);
+      
+      if (result.success && result.data) {
         sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-      } else if (result && result.reading) {
+      } else if (result.reading) {
         sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
       } else {
-        throw new Error('Make returned: ' + rawText.substring(0, 100));
+        sajuResults = result;
       }
-
+      
       console.log('Parsed sajuResults:', sajuResults);
       localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
       
@@ -1025,174 +1028,65 @@ function showDropdowns(config, callback) {
 
 
   async function show3Bubbles() {
+    // Check if sajuResults exists
     if (!sajuResults || !sajuResults.bubbles) {
       await showTyping(700);
-      addMessage("Sorry, I couldn't read your chart right now.<br>Please try again.", 'nora');
+      addMessage("Sorry, I couldn't read your fortune right now.<br>Please try again.", 'nora');
       return;
     }
-
-    const name = userData.name;
-
-    // PHASE 1 — identity 버블
-    await showTyping(800);
+    
+    await showTyping(700);
     addMessage(sajuResults.bubbles.identity, 'nora');
+    
+    await showTyping(800);
+    addMessage(sajuResults.bubbles.pattern, 'nora');
+    
+    await showTyping(800);
+    addMessage(sajuResults.bubbles.action, 'nora');
+    
+    // 4th bubble - TEASER only (first sentence)
+    if (sajuResults.bubbles.your_question) {
+      await showTyping(900);
+      const fullAnswer = sajuResults.bubbles.your_question;
+      const firstSentence = fullAnswer.split('.')[0] + '.';
+      addMessage(firstSentence, 'nora');
+      
+      await showTyping(700);
+      addMessage("That's just the beginning of what I see about your question.<br>Want the full answer? $8.99 gets you everything.", 'nora');
+    } else if (userData.note && userData.note.trim().length > 0) {
+      await showTyping(900);
+      addMessage(`I see your question about "${userData.note}".<br>I have insights for you, but the full answer is in the premium reading.`, 'nora');
+    }
 
-    await showTyping(600);
-    addMessage("Does that sound like you?", 'nora');
+    // Reaction step
+    await showTyping(800);
+    addMessage("Does this sound like you?", 'nora');
 
-    showChoices(['😮 That\'s exactly it', '🤔 Somewhat', '😐 Not me'], async (reaction) => {
+    showChoices(['😮 Omg yes', '🤔 Kinda', '😐 Not really'], async (reaction) => {
       userData.reaction = reaction;
 
-      if (reaction === '😮 That\'s exactly it') {
-        // 이름 호출 1회 (PHASE 1)
+      if (reaction === '😮 Omg yes') {
         await showTyping(600);
-        addMessage(`Yeah. Your chart doesn't lie. 🔮`, 'nora');
-        await proceedToPhase2(name);
-
-      } else if (reaction === '🤔 Somewhat') {
+        addMessage("Right? Your chart doesn't lie. 🔮", 'nora');
+      } else if (reaction === '🤔 Kinda') {
         await showTyping(600);
-        addMessage(`That's actually really common — the full reading usually fills in what doesn't click yet.`, 'nora');
-        await proceedToPhase2(name);
-
+        addMessage("That's actually super common — the full reading usually fills in the gaps.", 'nora');
       } else {
-        // Not me → drill-down: 이탈 방지
-        await showTyping(700);
-        addMessage(`Interesting. Sometimes the details land harder than the overview does.`, 'nora');
-
-        await showTyping(900);
-        addMessage(`${name}, that's not a coincidence.<br>It's in your birth energy.`, 'nora'); // 이름 호출 1회
-
-        await showTyping(800);
-        const patternWhat = sajuResults.bubbles.pattern_what
-          || (sajuResults.bubbles.pattern
-              ? sajuResults.bubbles.pattern.split('.')[0] + '.'
-              : null);
-        if (patternWhat) {
-          addMessage(patternWhat, 'nora');
-        }
-
-        await showTyping(700);
-        addMessage(`The reason why — that's in the full reading. 🔒`, 'nora');
-
-        // PHASE 3 cycle 힌트 먼저 보여줌
-        await showTyping(900);
-        const timingDrill = sajuResults.bubbles.current_cycle_timing || sajuResults.current_cycle_timing;
-        const cycleDrill = sajuResults.bubbles.current_cycle || sajuResults.current_cycle;
-        if (timingDrill === 'now') {
-          addMessage(`And — something is moving in your chart right now. Not eventually. <em>Now.</em> 🌀`, 'nora');
-        } else {
-          addMessage(`And — something is building in your chart. It's not here yet, but it's close. 🌙`, 'nora');
-        }
-        if (cycleDrill) {
-          await showTyping(700);
-          addMessage(cycleDrill, 'nora');
-        }
-
-        // drill-down 질문
-        await showTyping(900);
-        addMessage(`${name}, what's been sitting heaviest lately?`, 'nora'); // 이름 호출 2회
-
-        showChoices(
-          ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There\'s a specific person'],
-          async (area) => {
-            await showAreaReading(area);
-          }
-        );
+        await showTyping(600);
+        addMessage("Interesting. The details might surprise you more than the overview does.", 'nora');
       }
-    });
-  }
 
-  async function proceedToPhase2(name) {
-    // PHASE 2 — pattern: what만, why는 잠금
-    await showTyping(900);
-    addMessage(`That's not a coincidence.<br>It's in your birth energy.`, 'nora');
-
-    await showTyping(800);
-    const patternWhat = sajuResults.bubbles.pattern_what
-      || (sajuResults.bubbles.pattern
-          ? sajuResults.bubbles.pattern.split('.')[0] + '.'
-          : null);
-    if (patternWhat) {
-      addMessage(patternWhat, 'nora');
-      await showTyping(700);
-      addMessage(`The reason why — that's in the full reading. 🔒`, 'nora');
-    } else if (sajuResults.bubbles.pattern) {
-      addMessage(sajuResults.bubbles.pattern, 'nora');
-    }
-
-    // PHASE 3 — current cycle (이름 없음)
-    await showTyping(900);
-    const timing = sajuResults.bubbles.current_cycle_timing || sajuResults.current_cycle_timing;
-    const cycleText = sajuResults.bubbles.current_cycle || sajuResults.current_cycle;
-
-    if (timing === 'now') {
-      addMessage(`Something is moving in your chart right now.<br>Not eventually. <em>Now.</em> 🌀`, 'nora');
-    } else if (timing === 'soon') {
-      addMessage(`Something is building in your chart.<br>It's not here yet — but it's close. 🌙`, 'nora');
-    }
-
-    if (cycleText) {
-      await showTyping(700);
-      addMessage(cycleText, 'nora');
-    }
-
-    // action 버블
-    if (sajuResults.bubbles.action) {
       await showTyping(800);
-      addMessage(sajuResults.bubbles.action, 'nora');
-    }
+      addMessage("I can show you one area for free.<br>Which one speaks to you right now?", 'nora');
 
-    // PHASE 4 — 영역 선택 (이름 없음)
-    await showTyping(800);
-    addMessage(`What's been sitting heaviest lately?`, 'nora');
-
-    showChoices(
-      ['💗 Love & relationships', '💰 Money & career', '⚡ Just my overall energy', '👤 There\'s a specific person'],
-      async (area) => {
-        await showAreaReading(area);
-      }
-    );
-  }
-
-  async function showAreaReading(area) {
-    // 영역별 연결 멘트
-    const areaMap = {
-      '💗 Love & relationships': 'Love',
-      '💰 Money & career': 'Money',
-      '⚡ Just my overall energy': 'Energy',
-      "👤 There's a specific person": 'Love'
-    };
-
-    const areaHooks = {
-      '💗 Love & relationships': `Yeah.<br>That's the one your chart has the most to say about.`,
-      '💰 Money & career': `Yeah.<br>Your chart has something specific here.`,
-      '⚡ Just my overall energy': `Makes sense.<br>Your energy pattern is the root of everything else.`,
-      "👤 There's a specific person": `Yeah.<br>Your chart has a lot to say about the people you pull toward you.`
-    };
-
-    const category = areaMap[area] || 'Energy';
-
-    await showTyping(900);
-    addMessage(areaHooks[area] || `Let's look at this.`, 'nora');
-
-    const reading = sajuResults.categories?.[category];
-    if (reading?.today) {
-      await showTyping(1000);
-      addMessage(reading.today, 'nora');
-    }
-
-    await showTyping(800);
-    addMessage(`That's what I see for right now.`, 'nora');
-
-    // Share 버튼 없음 — 결제 후로만
-    // Upsell 바로
-    await showTyping(700);
-    await showUpsell();
+      showCategories(['Love', 'Money', 'Work', 'Energy'], showCategoryReading);
+    });
   }
 
   async function showCategoryReading(category) {
     await showTyping(700);
-
+    
+    // 각 카테고리별 시작 문구
     const intros = {
       'Love': `${category} - let's look at your heart.`,
       'Money': `${category} - let's talk about your flow.`,
@@ -1204,13 +1098,21 @@ function showDropdowns(config, callback) {
     
     const reading = sajuResults.categories[category];
     
+    // FREE: Only show "today"
     await showTyping(900);
     addMessage(reading.today, 'nora');
     
+    // Teaser for more
     await showTyping(1000);
-    addMessage("That's what I see for right now.", 'nora');
+    addMessage("That's what I see for today.", 'nora');
+
+    // Social hook — share nudge before upsell
+    await showTyping(800);
+    addMessage("If this hit different, send it to a friend. Their reaction is always 👀", 'nora');
+    showShareButton();
 
     await showTyping(600);
+    // Show upgrade option
     await showUpsell();
   }
 
@@ -1295,242 +1197,202 @@ function showDropdowns(config, callback) {
   }
 
 async function showUpsell() {
-    const name = userData.name;
-
-    // PHASE 5 — 결제 직전: 이름 1회만 (마지막 CTA에서)
     await showTyping(900);
-    addMessage("Over 2,400 people have read theirs this month.", 'nora');
-
-    await showTyping(700);
-    addMessage("Most say the same thing after.<br><em>\"I wish I saw this sooner.\"</em> 🔮", 'nora');
-
+    addMessage("That was the preview. The full reading gets into things I can't say in a free reading — your question, your patterns, your next 2 months specifically.", 'nora');
+    
     await showTyping(800);
-    addMessage(`Your reading is ready, ${name}. ✨`, 'nora'); // 이름 호출 — PHASE 5에서 1회
+    addMessage("$8.99 🔮 Worth it?", 'nora');
+    
+    showChoices(['Yes, show me', 'Not now'], async (choice) => {
+      if (choice === 'Yes, show me') {
+        gtag('event', 'upsell_clicked', {
+          event_category: 'conversion',
+          event_label: 'yes_show_me'
+        });
+        await showTyping(700);
+        addMessage("Where should I send your full reading? 📩", 'nora');
+        await showTyping(400);
 
-    await showTyping(700);
+        const askForEmail = async () => {
+          showTextInput('Your email', async (email) => {
+            if (!email || !email.includes('@')) {
+              await showTyping(400);
+              addMessage("Hmm, that doesn't look right — try again?", 'nora');
+              askForEmail();
+              return;
+            }
 
-    // CTA 버튼 + 가격 표시
-    hideAllInputs();
-    choices.innerHTML = '';
+            hideAllInputs();
+            await showTyping(600);
+            addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+            await showTyping(500);
 
-    const ctaBtn = document.createElement('button');
-    ctaBtn.className = 'choice-btn';
-    ctaBtn.innerHTML = 'Get my reading 🔮';
-    ctaBtn.style.cssText = 'font-size:16px;font-weight:700;padding:14px 24px;';
-    ctaBtn.onclick = async () => {
-      addMessage('Get my reading 🔮', 'user');
-      hideAllInputs();
-      gtag('event', 'upsell_clicked', {
-        event_category: 'conversion',
-        event_label: 'get_my_reading'
-      });
-      await showTyping(700);
-      addMessage(`Where should I send your full reading, ${name}? 📩`, 'nora');
-      await showTyping(400);
-      askForEmail();
-    };
+            const paypalWrapper = document.createElement('div');
+            paypalWrapper.id = 'paypal-button-container';
+            paypalWrapper.style.cssText = 'padding: 12px 0;';
+            chat.insertBefore(paypalWrapper, typing);
+            scrollToBottom();
 
-    const notNowBtn = document.createElement('button');
-    notNowBtn.className = 'choice-btn';
-    notNowBtn.innerHTML = 'Not now';
-    notNowBtn.style.cssText = 'font-size:14px;opacity:0.6;padding:10px 20px;';
-    notNowBtn.onclick = async () => {
-      addMessage('Not now', 'user');
-      hideAllInputs();
-      await showNotNow();
-    };
+            if (typeof paypal === 'undefined') {
+              await new Promise((resolve) => {
+                const checkPaypal = setInterval(() => {
+                  if (typeof paypal !== 'undefined') {
+                    clearInterval(checkPaypal);
+                    resolve();
+                  }
+                }, 100);
+              });
+            }
 
-    const priceNote = document.createElement('div');
-    priceNote.style.cssText = 'font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-top:6px;';
-    priceNote.textContent = '$8.99 · In your inbox in minutes';
+            paypal.Buttons({
+              createOrder: function(data, actions) {
+                return actions.order.create({
+                  purchase_units: [{
+                    amount: { value: '8.99' },
+                    custom_id: email
+                  }],
+                  application_context: {
+                    shipping_preference: 'NO_SHIPPING',
+                    user_action: 'PAY_NOW'
+                  }
+                });
+              },
+              onApprove: function(data, actions) {
+                return actions.order.capture().then(async function(details) {
+                  paypalWrapper.remove();
+                  if (!sajuResults) {
+                    const saved = localStorage.getItem('nora_saju_results');
+                    if (saved) sajuResults = JSON.parse(saved);
+                  }
 
-    choices.appendChild(ctaBtn);
-    choices.appendChild(priceNote);
-    choices.appendChild(notNowBtn);
-    choices.classList.add('show');
-    inputArea.classList.add('show');
-    scrollToBottom();
+                  addMessage("You're all set. 🔮", 'nora');
 
-    // Not now → weekly email 수집
-    const showNotNow = async () => {
-      await showTyping(700);
-      addMessage(`No pressure, ${name}. 🫶`, 'nora');
-      await showTyping(800);
-      addMessage(`Before you go — want me to send you a weekly nudge based on your chart?<br><span style='font-size:11px;opacity:0.45;line-height:2;'>By submitting your email, you agree to our <a href='/privacy' target='_blank' style='color:#C9A9E9;'>Privacy Policy</a></span>`, 'nora');
+                  const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+                    'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+                  const userElement = elementKeys.find(k =>
+                    sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
 
-      showTextInput('Your email (skip if you want)', async (email) => {
-        if (email && email.includes('@')) {
-          const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-            'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-          const userElement = elementKeys.find(k =>
-            sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+                  try {
+                    await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        type: 'paid_reading',
+                        email: email,
+                        name: userData.name,
+                        element: userElement,
+                        missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                        birthday: userData.birthday,
+                        birth_time: userData.birth_time,
+                        reaction: userData.reaction || 'Unknown',
+                        element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+                        bubble_identity: sajuResults?.bubbles?.identity || '',
+                        bubble_pattern: sajuResults?.bubbles?.pattern || '',
+                        bubble_action: sajuResults?.bubbles?.action || '',
+                        bubble_question: sajuResults?.bubbles?.your_question || '',
+                        compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+                        compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+                        compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+                        love_today: sajuResults?.categories?.Love?.today || '',
+                        love_month: sajuResults?.categories?.Love?.this_month || '',
+                        love_year: sajuResults?.categories?.Love?.this_year || '',
+                        money_today: sajuResults?.categories?.Money?.today || '',
+                        money_month: sajuResults?.categories?.Money?.this_month || '',
+                        money_year: sajuResults?.categories?.Money?.this_year || '',
+                        work_today: sajuResults?.categories?.Work?.today || '',
+                        work_month: sajuResults?.categories?.Work?.this_month || '',
+                        work_year: sajuResults?.categories?.Work?.this_year || '',
+                        energy_today: sajuResults?.categories?.Energy?.today || '',
+                        energy_month: sajuResults?.categories?.Energy?.this_month || '',
+                        energy_year: sajuResults?.categories?.Energy?.this_year || '',
+                        timestamp: new Date().toISOString()
+                      })
+                    });
+                  } catch(e) { console.error('Webhook error', e); }
 
-          try {
+                  await new Promise(r => setTimeout(r, 800));
+                  await showTyping(900);
+                  addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+                  await showTyping(700);
+                  addMessage("And if it hits different... you know what to do 👀", 'nora');
+                  await showTyping(800);
+
+                  showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+                    if (choice === 'Start a new reading') {
+                      conversationStarted = false;
+                      sajuResults = null;
+                      viewedCategories = [];
+                      localStorage.removeItem('nora_last_used');
+                      chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+                      typing = document.getElementById('typing');
+                      dmScreen.classList.remove('active');
+                      coverScreen.classList.add('active');
+                    } else {
+                      const baseUrl = 'https://readnora.com';
+                      const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
+                      if (navigator.share) {
+                        try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
+                      } else {
+                        await navigator.clipboard.writeText(shareText);
+                        addMessage("Copied! Send it to someone 👀", 'nora');
+                      }
+                    }
+                  });
+                });
+              },
+              onError: function(err) {
+                console.error('PayPal error:', err);
+                addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+              }
+            }).render('#paypal-button-container');
+
+            paypalWrapper.insertAdjacentHTML('afterbegin', `
+              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
+                By completing your purchase, you agree to our 
+                <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
+              </p>
+            `);
+          }, false);
+        };
+        askForEmail();
+
+      } else {
+        await showTyping(700);
+        addMessage("No pressure. 🫶<br>Before you go — want me to send you a weekly nudge based on your chart?<br><span style='font-size:11px;opacity:0.5;line-height:2;'>By submitting your email, you agree to our <a href='/privacy' target='_blank' style='color:#C9A9E9;'>Privacy Policy</a></span>", 'nora');
+        await showTyping(500);
+        showTextInput('Your email (skip if you want)', async (email) => {
+          if (email && email.includes('@')) {
+            const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+              'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+            const userElement = elementKeys.find(k =>
+              sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
             await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 type: 'email_capture',
                 email: email,
-                name: name,
+                name: userData.name,
                 element: userElement,
-                missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
+                missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
                 birthday: userData.birthday,
                 birth_time: userData.birth_time,
                 reaction: userData.reaction || 'Unknown',
                 timestamp: new Date().toISOString()
               })
             });
-          } catch(e) { console.error('Email capture error', e); }
 
-          await showTyping(600);
-          addMessage(`Got it, ${name}. See you next week. ✨`, 'nora');
-        } else {
-          await showTyping(500);
-          addMessage(`All good, ${name}. See you when you're ready. 🌙`, 'nora');
-        }
-        hideAllInputs();
-      }, true);
-    };
-
-    // 이메일 입력 함수
-    const askForEmail = async () => {
-      showTextInput('Your email', async (email) => {
-        if (!email || !email.includes('@')) {
-          await showTyping(400);
-          addMessage("Hmm, that doesn't look right — try again?", 'nora');
-          askForEmail();
-          return;
-        }
-
-        hideAllInputs();
-        await showTyping(600);
-        addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-        await showTyping(500);
-
-        const paypalWrapper = document.createElement('div');
-        paypalWrapper.id = 'paypal-button-container';
-        paypalWrapper.style.cssText = 'padding: 12px 0;';
-        chat.insertBefore(paypalWrapper, typing);
-        scrollToBottom();
-
-        if (typeof paypal === 'undefined') {
-          await new Promise((resolve) => {
-            const checkPaypal = setInterval(() => {
-              if (typeof paypal !== 'undefined') {
-                clearInterval(checkPaypal);
-                resolve();
-              }
-            }, 100);
-          });
-        }
-
-        paypal.Buttons({
-          createOrder: function(data, actions) {
-            return actions.order.create({
-              purchase_units: [{
-                amount: { value: '8.99' },
-                custom_id: email
-              }],
-              application_context: {
-                shipping_preference: 'NO_SHIPPING',
-                user_action: 'PAY_NOW'
-              }
-            });
-          },
-          onApprove: function(data, actions) {
-            return actions.order.capture().then(async function(details) {
-              paypalWrapper.remove();
-              if (!sajuResults) {
-                const saved = localStorage.getItem('nora_saju_results');
-                if (saved) sajuResults = JSON.parse(saved);
-              }
-
-              addMessage(`You're all set, ${name}. 🔮`, 'nora');
-
-              const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-                'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-              const userElement = elementKeys.find(k =>
-                sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-
-              try {
-                await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    type: 'paid_reading',
-                    email: email,
-                    name: name,
-                    element: userElement,
-                    missing_element: sajuResults?.bubbles?.missing_element || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean) || '',
-                    birthday: userData.birthday,
-                    birth_time: userData.birth_time,
-                    reaction: userData.reaction || 'Unknown',
-                    element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                    bubble_identity: sajuResults?.bubbles?.identity || '',
-                    bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                    bubble_action: sajuResults?.bubbles?.action || '',
-                    bubble_question: sajuResults?.bubbles?.your_question || '',
-                    compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                    compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                    compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                    love_today: sajuResults?.categories?.Love?.today || '',
-                    love_month: sajuResults?.categories?.Love?.this_month || '',
-                    love_year: sajuResults?.categories?.Love?.this_year || '',
-                    money_today: sajuResults?.categories?.Money?.today || '',
-                    money_month: sajuResults?.categories?.Money?.this_month || '',
-                    money_year: sajuResults?.categories?.Money?.this_year || '',
-                    work_today: sajuResults?.categories?.Work?.today || '',
-                    work_month: sajuResults?.categories?.Work?.this_month || '',
-                    work_year: sajuResults?.categories?.Work?.this_year || '',
-                    energy_today: sajuResults?.categories?.Energy?.today || '',
-                    energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                    energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                    timestamp: new Date().toISOString()
-                  })
-                });
-              } catch(e) { console.error('Webhook error', e); }
-
-              await new Promise(r => setTimeout(r, 800));
-              await showTyping(900);
-              addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-
-              // PHASE 6 — 결제 후 Share
-              await showTyping(800);
-              showChoices(['Send Nora to a friend', 'Just me for now'], async (shareChoice) => {
-                if (shareChoice === 'Send Nora to a friend') {
-                  const baseUrl = 'https://readnora.com';
-                  const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-                  if (navigator.share) {
-                    try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-                  } else {
-                    await navigator.clipboard.writeText(shareText);
-                    addMessage("Copied! Send it to someone 👀", 'nora');
-                  }
-                } else {
-                  await showTyping(600);
-                  addMessage("Enjoy your reading. 🔮", 'nora');
-                  await showTyping(700);
-                  addMessage("You know where to find me. 🌙", 'nora');
-                  hideAllInputs();
-                }
-              });
-            });
-          },
-          onError: function(err) {
-            console.error('PayPal error:', err);
-            addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
+            await showTyping(600);
+            addMessage("Got it. See you next week. ✨", 'nora');
+          } else {
+            await showTyping(500);
+            addMessage("All good. See you when you're ready! 🌙", 'nora');
           }
-        }).render('#paypal-button-container');
-
-        paypalWrapper.insertAdjacentHTML('afterbegin', `
-          <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
-            By completing your purchase, you agree to our 
-            <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-          </p>
-        `);
-      }, false);
-    };
+          hideAllInputs();
+        }, true);
+      }
+    });
   }
 
   // Handle return after successful payment
@@ -1547,9 +1409,20 @@ async function showUpsell() {
       await new Promise(r => setTimeout(r, 800));
       await showTyping(900);
       addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+      await showTyping(700);
+      addMessage("And if it hits different... you know what to do 👀", 'nora');
       await showTyping(800);
-      showChoices(['Send Nora to a friend', 'Just me for now'], async (choice) => {
-  if (choice === 'Send Nora to a friend') {
+showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+  if (choice === 'Start a new reading') {
+    conversationStarted = false;
+    sajuResults = null;
+    viewedCategories = [];
+    localStorage.removeItem('nora_last_used');
+    chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+    typing = document.getElementById('typing');
+    dmScreen.classList.remove('active');
+    coverScreen.classList.add('active');
+  } else {
     const baseUrl = 'https://readnora.com';
     const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
     if (navigator.share) {
@@ -1558,12 +1431,6 @@ async function showUpsell() {
       await navigator.clipboard.writeText(shareText);
       addMessage("Copied! Send it to someone 👀", 'nora');
     }
-  } else {
-    await showTyping(600);
-    addMessage("Enjoy your reading. 🔮", 'nora');
-    await showTyping(700);
-    addMessage("You know where to find me. 🌙", 'nora');
-    hideAllInputs();
   }
 });
     }, 500);
