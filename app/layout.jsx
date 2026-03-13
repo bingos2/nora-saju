@@ -74,8 +74,7 @@ export default function RootLayout({ children }) {
         </noscript>
         {children}
         <Script
-          src="https://www.paypal.com/sdk/js?client-id=BAAZfM7Mto41G7LWPsSpOPumDxagIr3QI1BxH9BPJA8le5beOR8skI9-6G1jDMiHMm5Mjo7z6_rrX6ZGyY&components=hosted-buttons&disable-funding=venmo&currency=USD"
-          strategy="lazyOnload"
+          src="https://www.paypal.com/sdk/js?client-id=AQHtoUyjhNa9CsOLS4kVcsEe4no4kiQ0xBM8molUYQUW4bxC2I0Fa5aiq_9xMvDjbFCruQsF5N-GSGor&currency=USD&locale=en_US"
         />
       </body>
     </html>
