@@ -1068,7 +1068,7 @@ function showDropdowns(config, callback) {
         await showTyping(700);
         addMessage(sajuResults.bubbles.action, 'nora');
         await showTyping(800);
-        addMessage(`${name}, that's not a coincidence — it's your chart showing up in a different layer.`, 'nora');
+        addMessage("That's not a coincidence — it's your chart showing up in a different layer.", 'nora');
         await showTyping(700);
         addMessage(`${name}, what's been sitting heaviest lately?`, 'nora');
         showCategories(['Love', 'Money', 'Work', 'Energy'], showAreaReading);
@@ -1101,7 +1101,7 @@ function showDropdowns(config, callback) {
     await showTyping(900);
     addMessage("That's what I see for today.", 'nora');
     await showTyping(600);
-    await showUpsell(name);
+    await showUpsell(userData.name);
   }
 
   async function showCategoryReading(category) {
@@ -1128,7 +1128,7 @@ function showDropdowns(config, callback) {
     addMessage("That's what I see for today.", 'nora');
 
     await showTyping(600);
-    await showUpsell();
+    await showUpsell(userData.name);
   }
 
   function showShareButton() {
