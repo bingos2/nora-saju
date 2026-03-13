@@ -828,7 +828,10 @@ function showDropdowns(config, callback) {
                             email: email,
                             name: userData.name,
                             element: userElement,
-                            missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                            missing_element: sajuResults?.bubbles?.missing_element
+                              || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
+                              || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
+                              || '',
                             birthday: userData.birthday,
                             birth_time: userData.birth_time,
                             reaction: userData.reaction || 'Unknown',
@@ -936,10 +939,7 @@ function showDropdowns(config, callback) {
     scrollToBottom();
 
     const loadingMessages = [
-      "Reading the year you were born...",
       "Mapping your four pillars...",
-      "Calculating your element...",
-      "Looking at your patterns...",
       "Almost there..."
     ];
 
@@ -1044,59 +1044,64 @@ function showDropdowns(config, callback) {
 
 
   async function show3Bubbles() {
-    // Check if sajuResults exists
     if (!sajuResults || !sajuResults.bubbles) {
       await showTyping(700);
       addMessage("Sorry, I couldn't read your fortune right now.<br>Please try again.", 'nora');
       return;
     }
-    
+
+    const name = userData.name;
+
     await showTyping(700);
     addMessage(sajuResults.bubbles.identity, 'nora');
-    
-    await showTyping(800);
-    addMessage(sajuResults.bubbles.pattern, 'nora');
-    
-    await showTyping(800);
-    addMessage(sajuResults.bubbles.action, 'nora');
-    
-    // 4th bubble - TEASER only (first sentence)
-    if (sajuResults.bubbles.your_question) {
-      await showTyping(900);
-      const fullAnswer = sajuResults.bubbles.your_question;
-      const firstSentence = fullAnswer.split('.')[0] + '.';
-      addMessage(firstSentence, 'nora');
-      
-      await showTyping(700);
-      addMessage("That's just the beginning of what I see about your question.<br>Want the full answer? $8.99 gets you everything.", 'nora');
-    } else if (userData.note && userData.note.trim().length > 0) {
-      await showTyping(900);
-      addMessage(`I see your question about "${userData.note}".<br>I have insights for you, but the full answer is in the premium reading.`, 'nora');
-    }
 
-    // Reaction step
     await showTyping(800);
-    addMessage("Does this sound like you?", 'nora');
+    addMessage("Does that sound like you?", 'nora');
 
-    showChoices(['😮 Omg yes', '🤔 Kinda', '😐 Not really'], async (reaction) => {
+    showChoices(["😮 That's exactly it", "🤔 Somewhat", "😐 Not me"], async (reaction) => {
       userData.reaction = reaction;
 
-      if (reaction === '😮 Omg yes') {
-        await showTyping(600);
-        addMessage("Right? Your chart doesn't lie. 🔮", 'nora');
-      } else if (reaction === '🤔 Kinda') {
-        await showTyping(600);
-        addMessage("That's actually super common — the full reading usually fills in the gaps.", 'nora');
+      if (reaction === "😐 Not me") {
+        // Not me 드릴다운
+        await showTyping(700);
+        addMessage(sajuResults.bubbles.pattern, 'nora');
+        await showTyping(700);
+        addMessage(sajuResults.bubbles.action, 'nora');
+        await showTyping(800);
+        addMessage(`${name}, that's not a coincidence — it's your chart showing up in a different layer.`, 'nora');
+        await showTyping(700);
+        addMessage(`${name}, what's been sitting heaviest lately?`, 'nora');
+        showCategories(['Love', 'Money', 'Work', 'Energy'], showAreaReading);
       } else {
         await showTyping(600);
-        addMessage("Interesting. The details might surprise you more than the overview does.", 'nora');
+        if (reaction === "😮 That's exactly it") {
+          addMessage("Your chart is unusually clear. That's rare. 🔮", 'nora');
+        } else {
+          addMessage("That's normal — the full reading usually fills in the gaps.", 'nora');
+        }
+        await proceedToPhase2(name);
       }
-
-      await showTyping(800);
-      addMessage("I can show you one area for free.<br>Which one speaks to you right now?", 'nora');
-
-      showCategories(['Love', 'Money', 'Work', 'Energy'], showCategoryReading);
     });
+  }
+
+  async function proceedToPhase2(name) {
+    await showTyping(800);
+    addMessage(sajuResults.bubbles.pattern, 'nora');
+    await showTyping(800);
+    addMessage(sajuResults.bubbles.action, 'nora');
+    await showTyping(800);
+    addMessage("I can show you one area for free.<br>Which one speaks to you right now?", 'nora');
+    showCategories(['Love', 'Money', 'Work', 'Energy'], showAreaReading);
+  }
+
+  async function showAreaReading(category) {
+    await showTyping(700);
+    const reading = sajuResults.categories[category];
+    addMessage(reading.today, 'nora');
+    await showTyping(900);
+    addMessage("That's what I see for today.", 'nora');
+    await showTyping(600);
+    await showUpsell(name);
   }
 
   async function showCategoryReading(category) {
@@ -1122,13 +1127,7 @@ function showDropdowns(config, callback) {
     await showTyping(1000);
     addMessage("That's what I see for today.", 'nora');
 
-    // Social hook — share nudge before upsell
-    await showTyping(800);
-    addMessage("If this hit different, send it to a friend. Their reaction is always 👀", 'nora');
-    showShareButton();
-
     await showTyping(600);
-    // Show upgrade option
     await showUpsell();
   }
 
@@ -1212,10 +1211,13 @@ function showDropdowns(config, callback) {
     scrollToBottom();
   }
 
-async function showUpsell() {
+async function showUpsell(name) {
     await showTyping(900);
-    addMessage("That was the preview. The full reading gets into things I can't say in a free reading — your question, your patterns, your next 2 months specifically.", 'nora');
-    
+    addMessage("Over 2,400 people have read theirs this month.", 'nora');
+    await showTyping(700);
+    addMessage("Most say the same thing after. 'I wish I saw this sooner.' 🔮", 'nora');
+    await showTyping(700);
+    addMessage(`Your reading is ready, ${name}. ✨`, 'nora');
     await showTyping(800);
     addMessage("$8.99 🔮 Worth it?", 'nora');
     
@@ -1297,7 +1299,10 @@ async function showUpsell() {
                         email: email,
                         name: userData.name,
                         element: userElement,
-                        missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                        missing_element: sajuResults?.bubbles?.missing_element
+                          || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
+                          || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
+                          || '',
                         birthday: userData.birthday,
                         birth_time: userData.birth_time,
                         reaction: userData.reaction || 'Unknown',
@@ -1407,7 +1412,10 @@ async function showUpsell() {
                 email: email,
                 name: userData.name,
                 element: userElement,
-                missing_element: sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1] || 'Unknown',
+                missing_element: sajuResults?.bubbles?.missing_element
+                  || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
+                  || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
+                  || '',
                 birthday: userData.birthday,
                 birth_time: userData.birth_time,
                 reaction: userData.reaction || 'Unknown',
