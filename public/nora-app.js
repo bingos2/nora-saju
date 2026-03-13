@@ -1,6 +1,47 @@
 (function() {
   console.log('🚀 Nora app loaded');
 
+  // ── lunar-javascript 로드 ──────────────────────────────
+  if (!window._lunarLoaded) {
+    window._lunarLoaded = true;
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js';
+    document.head.appendChild(s);
+  }
+
+  // ── 사주 계산 함수 ────────────────────────────────────
+  const GAN_EN = {
+    '甲':'Yang Wood','乙':'Yin Wood','丙':'Yang Fire','丁':'Yin Fire','戊':'Yang Earth',
+    '己':'Yin Earth','庚':'Yang Metal','辛':'Yin Metal','壬':'Yang Water','癸':'Yin Water'
+  };
+  const ZHI_EN = {
+    '子':'Yang Water','丑':'Yin Earth','寅':'Yang Wood','卯':'Yin Wood','辰':'Yang Earth','巳':'Yin Fire',
+    '午':'Yang Fire','未':'Yin Earth','申':'Yang Metal','酉':'Yin Metal','戌':'Yang Earth','亥':'Yin Water'
+  };
+
+  function calcPillars(kstYear, kstMonth, kstDay, kstHour, kstMinute) {
+    try {
+      if (typeof Solar === 'undefined') return null;
+      const solar = Solar.fromYmdHms(kstYear, kstMonth, kstDay, kstHour, kstMinute, 0);
+      const ec = solar.getLunar().getEightChar();
+      const yg = ec.getYearGan(),  yz = ec.getYearZhi();
+      const mg = ec.getMonthGan(), mz = ec.getMonthZhi();
+      const dg = ec.getDayGan(),   dz = ec.getDayZhi();
+      const hg = ec.getTimeGan(),  hz = ec.getTimeZhi();
+      return {
+        year:  { tg_char: yg, tg: GAN_EN[yg]||yg, dz_char: yz, dz: ZHI_EN[yz]||yz },
+        month: { tg_char: mg, tg: GAN_EN[mg]||mg, dz_char: mz, dz: ZHI_EN[mz]||mz },
+        day:   { tg_char: dg, tg: GAN_EN[dg]||dg, dz_char: dz, dz: ZHI_EN[dz]||dz },
+        hour:  { tg_char: hg, tg: GAN_EN[hg]||hg, dz_char: hz, dz: ZHI_EN[hz]||hz }
+      };
+    } catch(e) {
+      console.error('Pillar calc error:', e);
+      return null;
+    }
+  }
+
+
+
   // Update status bar time
   function updateStatusTime() {
     const now = new Date();
@@ -658,7 +699,11 @@ function showDropdowns(config, callback) {
 
  function convertToKST(userData) {
   if (userData.birth_time === 'unknown') {
-    return userData;
+    // 시간 모를 때: 날짜만으로 pillars 계산 (00:00 KST 기준)
+    const [month, day, year] = userData.birthday.split('/').map(Number);
+    const pillars = calcPillars(year, month, day, 0, 0);
+    if (pillars) console.log('🀄 Pillars (no time):', pillars);
+    return { ...userData, pillars };
   }
   
   // Parse input
@@ -692,7 +737,11 @@ function showDropdowns(config, callback) {
   const kstMinute = String(kstDate.getMinutes()).padStart(2, '0');
   
   console.log(`🌍 ${userData.birthday} ${userData.birth_time} ${userData.timezone_short} → ${kstMonth}/${kstDay}/${kstYear} ${kstHour}:${kstMinute} KST`);
-  
+
+  // ── pillars 계산 (KST 기준) ──
+  const pillars = calcPillars(kstDate.getFullYear(), kstDate.getMonth()+1, kstDate.getDate(), kstDate.getHours(), kstDate.getMinutes());
+  if (pillars) console.log('🀄 Pillars:', pillars);
+
   return {
     ...userData,
     birthday: `${kstMonth}/${kstDay}/${kstYear}`,
@@ -700,7 +749,8 @@ function showDropdowns(config, callback) {
     timezone: 'Asia/Seoul',
     timezone_short: 'KST',
     original_timezone: userData.timezone,
-    original_timezone_short: userData.timezone_short
+    original_timezone_short: userData.timezone_short,
+    pillars: pillars
   };
 }
   async function step8_sendWebhook() {
@@ -987,7 +1037,12 @@ function showDropdowns(config, callback) {
       } else {
         sajuResults = result;
       }
-      
+
+      // pillars는 JS에서 계산한 값 사용 (OpenAI 계산값 덮어쓰기)
+      if (kstData.pillars) {
+        sajuResults.pillars = kstData.pillars;
+      }
+
       console.log('Parsed sajuResults:', sajuResults);
       localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
       
@@ -1062,15 +1117,16 @@ function showDropdowns(config, callback) {
       userData.reaction = reaction;
 
       if (reaction === "😐 Not me") {
-        // Not me 드릴다운
+        await showTyping(800);
+        addMessage("Hmm, interesting. Maybe the surface description isn't landing — but your chart still has something to say.", 'nora');
         await showTyping(700);
         addMessage(sajuResults.bubbles.pattern, 'nora');
         await showTyping(700);
         addMessage(sajuResults.bubbles.action, 'nora');
         await showTyping(800);
-        addMessage("That's not a coincidence — it's your chart showing up in a different layer.", 'nora');
+        addMessage("Recognize any of that? Sometimes it shows up in ways we don't immediately label as 'us.'", 'nora');
         await showTyping(700);
-        addMessage(`${name}, what's been sitting heaviest lately?`, 'nora');
+        addMessage(`What's been sitting heaviest lately, ${name}?`, 'nora');
         showCategories(['Love', 'Money', 'Work', 'Energy'], showAreaReading);
       } else {
         await showTyping(600);
