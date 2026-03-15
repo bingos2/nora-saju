@@ -925,6 +925,13 @@ function showDropdowns(config, callback) {
                           })
                         });
                       } catch(e) { console.error('Webhook error', e); }
+                      
+                      // Google Ads 전환추적
+                      gtag('event', 'purchase', {
+                        'transaction_id': new Date().getTime(),
+                        'value': 8.99,
+                        'currency': 'USD'
+                      });
 
                       await new Promise(r => setTimeout(r, 800));
                       await showTyping(900);
