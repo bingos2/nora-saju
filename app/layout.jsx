@@ -2,8 +2,8 @@ import './globals.css'
 import Script from 'next/script'
 
 export const metadata = {
-  title: 'Free Saju Reading in English | AI Korean Fortune-Telling — Nora',
-  description: 'Get a free saju reading in English powered by AI. Nora uses Korean Four Pillars of Destiny (사주) to uncover your personality, love life, and fortune — in 3 minutes. No sign-up needed.',
+  title: 'The Most Accurate Saju Reading in English — Personalized by Nora',
+  description: 'Not a generic horoscope. Nora reads your Korean Four Pillars of Destiny and gives you an accurate, personalized saju reading',
   keywords: 'saju reading, four pillars of destiny, korean fortune telling, ai fortune teller, free fortune reading',
   icons: {
     icon: '/favicon.svg',
@@ -12,8 +12,8 @@ export const metadata = {
     canonical: 'https://readnora.com',
   },
   openGraph: {
-    title: 'Free Saju Reading in English | AI Korean Fortune-Telling — Nora',
-    description: 'Get a free saju reading in English powered by AI. Nora uses Korean Four Pillars of Destiny (사주) to uncover your personality, love life, and fortune — in 3 minutes. No sign-up needed.',
+    title: 'The Most Accurate Saju Reading in English — Personalized by Nora',
+    description: 'Not a generic horoscope. Nora reads your Korean Four Pillars of Destiny and gives you an accurate, personalized saju reading',
     url: 'https://readnora.com',
     siteName: 'Nora',
     images: [{ url: 'https://readnora.com/og-image.png', width: 1200, height: 630 }],
@@ -22,8 +22,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free Saju Reading in English | AI Korean Fortune-Telling — Nora',
-    description: 'Get a free saju reading powered by AI. Nora uses Korean Four Pillars of Destiny (사주) — in 3 minutes. No sign-up needed.',
+    title: 'The Most Accurate Saju Reading in English — Personalized by Nora',
+    description: 'Not a generic horoscope. Nora reads your Korean Four Pillars of Destiny and gives you an accurate, personalized saju reading',
     images: ['https://readnora.com/og-image.png'],
   },
 }
