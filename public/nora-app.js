@@ -40,8 +40,6 @@
     }
   }
 
-
-
   // Update status bar time
   function updateStatusTime() {
     const now = new Date();
@@ -753,6 +751,197 @@ function showDropdowns(config, callback) {
     pillars: pillars
   };
 }
+
+  // PayPal 버튼 표시 함수
+  function showPayPalButton(email) {
+    const paypalWrapper = document.createElement('div');
+    paypalWrapper.id = 'paypal-button-container';
+    paypalWrapper.style.cssText = 'padding: 12px 0;';
+    chat.insertBefore(paypalWrapper, typing);
+    scrollToBottom();
+
+    paypal.Buttons({
+      createOrder: function(data, actions) {
+        return actions.order.create({
+          purchase_units: [{
+            amount: { value: '8.99' },
+            custom_id: email
+          }],
+          application_context: {
+            shipping_preference: 'NO_SHIPPING',
+            user_action: 'PAY_NOW'
+          }
+        });
+      },
+      onApprove: function(data, actions) {
+        return actions.order.capture().then(async function(details) {
+          paypalWrapper.remove();
+          if (!sajuResults) {
+            const saved = localStorage.getItem('nora_saju_results');
+            if (saved) sajuResults = JSON.parse(saved);
+          }
+
+          // localStorage 버그 해결: pillars 없으면 다시 계산
+          if (sajuResults && !sajuResults.pillars && userData?.birthday) {
+            console.log('Fixing missing pillars for returning user');
+            const kstData = convertToKST(userData);
+            sajuResults.pillars = kstData.pillars;
+            localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
+          }
+
+          addMessage("You're all set. 🔮", 'nora');
+
+          const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
+            'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
+          const userElement = elementKeys.find(k =>
+            sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+
+          try {
+            // 30초 타임아웃 설정
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                type: 'paid_reading',
+                email: email,
+                name: userData.name,
+                element: userElement,
+                missing_element: sajuResults?.bubbles?.missing_element
+                  || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
+                  || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
+                  || '',
+                birthday: userData.birthday,
+                birth_time: userData.birth_time,
+                reaction: userData.reaction || 'Unknown',
+                element_slug: userElement.toLowerCase().replace(/ /g, '-'),
+                bubble_identity: sajuResults?.bubbles?.identity || '',
+                bubble_pattern: sajuResults?.bubbles?.pattern || '',
+                bubble_action: sajuResults?.bubbles?.action || '',
+                bubble_question: sajuResults?.bubbles?.your_question || '',
+                compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
+                compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
+                compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
+                love_today: sajuResults?.categories?.Love?.today || '',
+                love_month: sajuResults?.categories?.Love?.this_month || '',
+                love_year: sajuResults?.categories?.Love?.this_year || '',
+                money_today: sajuResults?.categories?.Money?.today || '',
+                money_month: sajuResults?.categories?.Money?.this_month || '',
+                money_year: sajuResults?.categories?.Money?.this_year || '',
+                work_today: sajuResults?.categories?.Work?.today || '',
+                work_month: sajuResults?.categories?.Work?.this_month || '',
+                work_year: sajuResults?.categories?.Work?.this_year || '',
+                energy_today: sajuResults?.categories?.Energy?.today || '',
+                energy_month: sajuResults?.categories?.Energy?.this_month || '',
+                energy_year: sajuResults?.categories?.Energy?.this_year || '',
+                pillar_year_tg_char: sajuResults?.pillars?.year?.tg_char || '',
+                pillar_year_tg: sajuResults?.pillars?.year?.tg || '',
+                pillar_year_dz_char: sajuResults?.pillars?.year?.dz_char || '',
+                pillar_year_dz: sajuResults?.pillars?.year?.dz || '',
+                pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char || '',
+                pillar_month_tg: sajuResults?.pillars?.month?.tg || '',
+                pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char || '',
+                pillar_month_dz: sajuResults?.pillars?.month?.dz || '',
+                pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
+                pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
+                pillar_day_dz_char: sajuResults?.pillars?.day?.dz_char || '',
+                pillar_day_dz: sajuResults?.pillars?.day?.dz || '',
+                pillar_hour_tg_char: sajuResults?.pillars?.hour?.tg_char || '',
+                pillar_hour_tg: sajuResults?.pillars?.hour?.tg || '',
+                pillar_hour_dz_char: sajuResults?.pillars?.hour?.dz_char || '',
+                pillar_hour_dz: sajuResults?.pillars?.hour?.dz || '',
+                timestamp: new Date().toISOString()
+              })
+            });
+            
+            clearTimeout(timeoutId);
+            
+          } catch(e) { 
+            console.error('Webhook error', e);
+            
+            if (e.name === 'AbortError') {
+              addMessage("Processing is taking longer than expected, but your payment went through. You'll get your reading soon! 📧", 'nora');
+            } else {
+              addMessage("Payment successful! There was a small hiccup sending your reading, but we'll get it to you shortly. 📧", 'nora');
+            }
+          }
+          
+          // Google Ads 전환추적
+          gtag('event', 'purchase', {
+            'transaction_id': new Date().getTime(),
+            'value': 8.99,
+            'currency': 'USD'
+          });
+
+          await new Promise(r => setTimeout(r, 800));
+          await showTyping(900);
+          addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
+          await showTyping(700);
+          addMessage("And if it hits different... you know what to do 👀", 'nora');
+          await showTyping(800);
+          
+          showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+            if (choice === 'Start a new reading') {
+              conversationStarted = false;
+              sajuResults = null;
+              viewedCategories = [];
+              localStorage.removeItem('nora_last_used');
+              chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+              typing = document.getElementById('typing');
+              dmScreen.classList.remove('active');
+              coverScreen.classList.add('active');
+            } else {
+              const baseUrl = 'https://readnora.com';
+              const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
+              if (navigator.share) {
+                try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
+              } else {
+                await navigator.clipboard.writeText(shareText);
+                addMessage("Copied! Send it to someone 👀", 'nora');
+              }
+            }
+          });
+        });
+      },
+      onError: function(err) {
+        console.error('PayPal Error:', err);
+        paypalWrapper.remove();
+        addMessage("Payment failed. Let's try again.", 'nora');
+        setTimeout(() => {
+          showChoices(['Try payment again', 'Contact support'], async (choice) => {
+            if (choice === 'Try payment again') {
+              showPayPalButton(email);
+            } else {
+              addMessage("No worries — reach out to hi@readnora.com and we'll sort this out! ✨", 'nora');
+            }
+          });
+        }, 1000);
+      },
+      onCancel: function(data) {
+        console.log('PayPal Cancelled:', data);
+        paypalWrapper.remove();
+        addMessage("No problem — you can try again anytime. 💜", 'nora');
+        setTimeout(() => {
+          showChoices(['Try payment again', 'Maybe later'], async (choice) => {
+            if (choice === 'Try payment again') {
+              showPayPalButton(email);
+            }
+          });
+        }, 1000);
+      }
+    }).render('#paypal-button-container');
+
+    paypalWrapper.insertAdjacentHTML('afterbegin', `
+      <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
+        By completing your purchase, you agree to our 
+        <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
+      </p>
+    `);
+  }
+
   async function step8_sendWebhook() {
     const urlParams = new URLSearchParams(window.location.search);
     const isTestMode = urlParams.get('test') === '1';
@@ -824,12 +1013,6 @@ function showDropdowns(config, callback) {
                 addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
                 await showTyping(500);
 
-                const paypalWrapper = document.createElement('div');
-                paypalWrapper.id = 'paypal-button-container';
-                paypalWrapper.style.cssText = 'padding: 12px 0;';
-                chat.insertBefore(paypalWrapper, typing);
-                scrollToBottom();
-
                 if (typeof paypal === 'undefined') {
                   await new Promise((resolve) => {
                     const checkPaypal = setInterval(() => {
@@ -841,148 +1024,7 @@ function showDropdowns(config, callback) {
                   });
                 }
 
-                paypal.Buttons({
-                  createOrder: function(data, actions) {
-                    return actions.order.create({
-                      purchase_units: [{
-                        amount: { value: '8.99' },
-                        custom_id: email
-                      }],
-                      application_context: {
-                        shipping_preference: 'NO_SHIPPING',
-                        user_action: 'PAY_NOW'
-                      }                    
-                    });
-                  },
-                  onApprove: function(data, actions) {
-                    return actions.order.capture().then(async function(details) {
-                      paypalWrapper.remove();
-                      if (!sajuResults) {
-                        const saved = localStorage.getItem('nora_saju_results');
-                        if (saved) sajuResults = JSON.parse(saved);
-                      }
-
-                      // localStorage 버그 해결: pillars 없으면 다시 계산
-                      if (sajuResults && !sajuResults.pillars && userData?.birthday) {
-                        console.log('Fixing missing pillars for returning user');
-                        const kstData = convertToKST(userData.birthday, userData.birth_time || 'unknown');
-                        sajuResults.pillars = kstData.pillars;
-                        localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
-                      }
-
-                      addMessage("You're all set. 🔮", 'nora');
-
-                      const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-                        'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-                      const userElement = elementKeys.find(k =>
-                        sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-
-                      try {
-                        await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            type: 'paid_reading',
-                            email: email,
-                            name: userData.name,
-                            element: userElement,
-                            missing_element: sajuResults?.bubbles?.missing_element
-                              || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
-                              || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
-                              || '',
-                            birthday: userData.birthday,
-                            birth_time: userData.birth_time,
-                            reaction: userData.reaction || 'Unknown',
-                            element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                            bubble_identity: sajuResults?.bubbles?.identity || '',
-                            bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                            bubble_action: sajuResults?.bubbles?.action || '',
-                            bubble_question: sajuResults?.bubbles?.your_question || '',
-                            compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                            compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                            compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                            love_today: sajuResults?.categories?.Love?.today || '',
-                            love_month: sajuResults?.categories?.Love?.this_month || '',
-                            love_year: sajuResults?.categories?.Love?.this_year || '',
-                            money_today: sajuResults?.categories?.Money?.today || '',
-                            money_month: sajuResults?.categories?.Money?.this_month || '',
-                            money_year: sajuResults?.categories?.Money?.this_year || '',
-                            work_today: sajuResults?.categories?.Work?.today || '',
-                            work_month: sajuResults?.categories?.Work?.this_month || '',
-                            work_year: sajuResults?.categories?.Work?.this_year || '',
-                            energy_today: sajuResults?.categories?.Energy?.today || '',
-                            energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                            energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                            pillar_year_tg_char: sajuResults?.pillars?.year?.tg_char || '',
-                            pillar_year_tg: sajuResults?.pillars?.year?.tg || '',
-                            pillar_year_dz_char: sajuResults?.pillars?.year?.dz_char || '',
-                            pillar_year_dz: sajuResults?.pillars?.year?.dz || '',
-                            pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char || '',
-                            pillar_month_tg: sajuResults?.pillars?.month?.tg || '',
-                            pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char || '',
-                            pillar_month_dz: sajuResults?.pillars?.month?.dz || '',
-                            pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
-                            pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
-                            pillar_day_dz_char: sajuResults?.pillars?.day?.dz_char || '',
-                            pillar_day_dz: sajuResults?.pillars?.day?.dz || '',
-                            pillar_hour_tg_char: sajuResults?.pillars?.hour?.tg_char || '',
-                            pillar_hour_tg: sajuResults?.pillars?.hour?.tg || '',
-                            pillar_hour_dz_char: sajuResults?.pillars?.hour?.dz_char || '',
-                            pillar_hour_dz: sajuResults?.pillars?.hour?.dz || '',
-                            timestamp: new Date().toISOString()
-                          })
-                        });
-                      } catch(e) { console.error('Webhook error', e); }
-                      
-                      // Google Ads 전환추적
-                      gtag('event', 'purchase', {
-                        'transaction_id': new Date().getTime(),
-                        'value': 8.99,
-                        'currency': 'USD'
-                      });
-
-                      await new Promise(r => setTimeout(r, 800));
-                      await showTyping(900);
-                      addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                      await showTyping(700);
-                      addMessage("And if it hits different... you know what to do 👀", 'nora');
-                      await showTyping(800);
-                      
-                      showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
-                        if (choice === 'Start a new reading') {
-                          conversationStarted = false;
-                          sajuResults = null;
-                          viewedCategories = [];
-                          localStorage.removeItem('nora_last_used');
-                          chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
-                          typing = document.getElementById('typing');
-                          dmScreen.classList.remove('active');
-                          coverScreen.classList.add('active');
-                        } else {
-                          const baseUrl = 'https://readnora.com';
-                          const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-                          if (navigator.share) {
-                            try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-                          } else {
-                            await navigator.clipboard.writeText(shareText);
-                            addMessage("Copied! Send it to someone 👀", 'nora');
-                          }
-                        }
-                      });
-                    });
-                  },
-                  onError: function(err) {
-                console.error('PayPal error:', err);
-                addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
-              }
-            }).render('#paypal-button-container');
-
-            paypalWrapper.insertAdjacentHTML('afterbegin', `
-              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
-                By completing your purchase, you agree to our 
-                <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-              </p>
-            `);
+                showPayPalButton(email);
               }, false);
             };
             askForEmail();
@@ -1316,12 +1358,6 @@ async function showUpsell(name) {
             addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
             await showTyping(500);
 
-            const paypalWrapper = document.createElement('div');
-            paypalWrapper.id = 'paypal-button-container';
-            paypalWrapper.style.cssText = 'padding: 12px 0;';
-            chat.insertBefore(paypalWrapper, typing);
-            scrollToBottom();
-
             if (typeof paypal === 'undefined') {
               await new Promise((resolve) => {
                 const checkPaypal = setInterval(() => {
@@ -1333,133 +1369,7 @@ async function showUpsell(name) {
               });
             }
 
-            paypal.Buttons({
-              createOrder: function(data, actions) {
-                return actions.order.create({
-                  purchase_units: [{
-                    amount: { value: '8.99' },
-                    custom_id: email
-                  }],
-                  application_context: {
-                    shipping_preference: 'NO_SHIPPING',
-                    user_action: 'PAY_NOW'
-                  }
-                });
-              },
-              onApprove: function(data, actions) {
-                return actions.order.capture().then(async function(details) {
-                  paypalWrapper.remove();
-                  if (!sajuResults) {
-                    const saved = localStorage.getItem('nora_saju_results');
-                    if (saved) sajuResults = JSON.parse(saved);
-                  }
-
-                  addMessage("You're all set. 🔮", 'nora');
-
-                  const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-                    'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-                  const userElement = elementKeys.find(k =>
-                    sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
-
-                  try {
-                    await fetch('https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        type: 'paid_reading',
-                        email: email,
-                        name: userData.name,
-                        element: userElement,
-                        missing_element: sajuResults?.bubbles?.missing_element
-                          || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
-                          || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
-                          || '',
-                        birthday: userData.birthday,
-                        birth_time: userData.birth_time,
-                        reaction: userData.reaction || 'Unknown',
-                        element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-                        bubble_identity: sajuResults?.bubbles?.identity || '',
-                        bubble_pattern: sajuResults?.bubbles?.pattern || '',
-                        bubble_action: sajuResults?.bubbles?.action || '',
-                        bubble_question: sajuResults?.bubbles?.your_question || '',
-                        compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-                        compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-                        compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-                        love_today: sajuResults?.categories?.Love?.today || '',
-                        love_month: sajuResults?.categories?.Love?.this_month || '',
-                        love_year: sajuResults?.categories?.Love?.this_year || '',
-                        money_today: sajuResults?.categories?.Money?.today || '',
-                        money_month: sajuResults?.categories?.Money?.this_month || '',
-                        money_year: sajuResults?.categories?.Money?.this_year || '',
-                        work_today: sajuResults?.categories?.Work?.today || '',
-                        work_month: sajuResults?.categories?.Work?.this_month || '',
-                        work_year: sajuResults?.categories?.Work?.this_year || '',
-                        energy_today: sajuResults?.categories?.Energy?.today || '',
-                        energy_month: sajuResults?.categories?.Energy?.this_month || '',
-                        energy_year: sajuResults?.categories?.Energy?.this_year || '',
-                        pillar_year_tg_char: sajuResults?.pillars?.year?.tg_char || '',
-                        pillar_year_tg: sajuResults?.pillars?.year?.tg || '',
-                        pillar_year_dz_char: sajuResults?.pillars?.year?.dz_char || '',
-                        pillar_year_dz: sajuResults?.pillars?.year?.dz || '',
-                        pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char || '',
-                        pillar_month_tg: sajuResults?.pillars?.month?.tg || '',
-                        pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char || '',
-                        pillar_month_dz: sajuResults?.pillars?.month?.dz || '',
-                        pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
-                        pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
-                        pillar_day_dz_char: sajuResults?.pillars?.day?.dz_char || '',
-                        pillar_day_dz: sajuResults?.pillars?.day?.dz || '',
-                        pillar_hour_tg_char: sajuResults?.pillars?.hour?.tg_char || '',
-                        pillar_hour_tg: sajuResults?.pillars?.hour?.tg || '',
-                        pillar_hour_dz_char: sajuResults?.pillars?.hour?.dz_char || '',
-                        pillar_hour_dz: sajuResults?.pillars?.hour?.dz || '',
-                        timestamp: new Date().toISOString()
-                      })
-                    });
-                  } catch(e) { console.error('Webhook error', e); }
-
-                  await new Promise(r => setTimeout(r, 800));
-                  await showTyping(900);
-                  addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
-                  await showTyping(700);
-                  addMessage("And if it hits different... you know what to do 👀", 'nora');
-                  await showTyping(800);
-
-                  showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
-                    if (choice === 'Start a new reading') {
-                      conversationStarted = false;
-                      sajuResults = null;
-                      viewedCategories = [];
-                      localStorage.removeItem('nora_last_used');
-                      chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
-                      typing = document.getElementById('typing');
-                      dmScreen.classList.remove('active');
-                      coverScreen.classList.add('active');
-                    } else {
-                      const baseUrl = 'https://readnora.com';
-                      const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-                      if (navigator.share) {
-                        try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-                      } else {
-                        await navigator.clipboard.writeText(shareText);
-                        addMessage("Copied! Send it to someone 👀", 'nora');
-                      }
-                    }
-                  });
-                });
-              },
-              onError: function(err) {
-                console.error('PayPal error:', err);
-                addMessage("Something went wrong with payment. Please try again. 🙏", 'nora');
-              }
-            }).render('#paypal-button-container');
-
-            paypalWrapper.insertAdjacentHTML('afterbegin', `
-              <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
-                By completing your purchase, you agree to our 
-                <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-              </p>
-            `);
+            showPayPalButton(email);
           }, false);
         };
         askForEmail();
@@ -1475,24 +1385,28 @@ async function showUpsell(name) {
             const userElement = elementKeys.find(k =>
               sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
 
-            await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'email_capture',
-                email: email,
-                name: userData.name,
-                element: userElement,
-                missing_element: sajuResults?.bubbles?.missing_element
-                  || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
-                  || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
-                  || '',
-                birthday: userData.birthday,
-                birth_time: userData.birth_time,
-                reaction: userData.reaction || 'Unknown',
-                timestamp: new Date().toISOString()
-              })
-            });
+            try {
+              await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'email_capture',
+                  email: email,
+                  name: userData.name,
+                  element: userElement,
+                  missing_element: sajuResults?.bubbles?.missing_element
+                    || sajuResults?.bubbles?.pattern?.match(/missing (?:element )?(?:is )?(\w+)/i)?.[1]
+                    || sajuResults?.bubbles?.identity?.match(/lacking (\w+)|without (\w+)|no (\w+) element/i)?.slice(1).find(Boolean)
+                    || '',
+                  birthday: userData.birthday,
+                  birth_time: userData.birth_time,
+                  reaction: userData.reaction || 'Unknown',
+                  timestamp: new Date().toISOString()
+                })
+              });
+            } catch(e) {
+              console.error('Email capture error:', e);
+            }
 
             await showTyping(600);
             addMessage("Got it. See you next week. ✨", 'nora');
