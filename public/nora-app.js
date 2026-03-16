@@ -862,6 +862,14 @@ function showDropdowns(config, callback) {
                         if (saved) sajuResults = JSON.parse(saved);
                       }
 
+                      // localStorage 버그 해결: pillars 없으면 다시 계산
+                      if (sajuResults && !sajuResults.pillars && userData?.birthday) {
+                        console.log('Fixing missing pillars for returning user');
+                        const kstData = convertToKST(userData.birthday, userData.birth_time || 'unknown');
+                        sajuResults.pillars = kstData.pillars;
+                        localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
+                      }
+
                       addMessage("You're all set. 🔮", 'nora');
 
                       const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
