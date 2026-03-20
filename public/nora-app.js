@@ -754,6 +754,11 @@ function showDropdowns(config, callback) {
 
   // PayPal 버튼 표시 함수
   function showPayPalButton(email) {
+    const existingContainer = document.getElementById('paypal-button-container');
+    if (existingContainer) {
+      existingContainer.remove();
+    }
+      
     const paypalWrapper = document.createElement('div');
     paypalWrapper.id = 'paypal-button-container';
     paypalWrapper.style.cssText = 'padding: 12px 0;';
@@ -783,7 +788,7 @@ function showDropdowns(config, callback) {
             const saved = localStorage.getItem('nora_saju_results');
             if (saved) sajuResults = JSON.parse(saved);
           }
-
+         
           // localStorage 버그 해결: pillars 없으면 다시 계산
           if (sajuResults && !sajuResults.pillars && userData?.birthday) {
             console.log('Fixing missing pillars for returning user');
@@ -910,7 +915,7 @@ function showDropdowns(config, callback) {
         });
       },
       onError: function(err) {
-        console.error('PayPal Error:', err);
+        console.log('🔴 PayPal onError', err);
         paypalWrapper.remove();
         addMessage("Payment failed. Let's try again.", 'nora');
         setTimeout(() => {
@@ -924,7 +929,7 @@ function showDropdowns(config, callback) {
         }, 1000);
       },
       onCancel: function(data) {
-        console.log('PayPal Cancelled:', data);
+        console.log('🟡 PayPal onCancel', data);
         paypalWrapper.remove();
         addMessage("No problem — you can try again anytime. 💜", 'nora');
         setTimeout(() => {
