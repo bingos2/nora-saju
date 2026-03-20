@@ -762,6 +762,7 @@ function showDropdowns(config, callback) {
 
     paypal.Buttons({
       createOrder: function(data, actions) {
+        console.log('🔵 Creating PayPal order...', { email, amount: '8.99' });
         return actions.order.create({
           purchase_units: [{
             amount: { value: '8.99' },
@@ -774,7 +775,9 @@ function showDropdowns(config, callback) {
         });
       },
       onApprove: function(data, actions) {
+        console.log('🟢 PayPal onApprove triggered', data);
         return actions.order.capture().then(async function(details) {
+          console.log('🟢 Order captured', details);
           paypalWrapper.remove();
           if (!sajuResults) {
             const saved = localStorage.getItem('nora_saju_results');
