@@ -707,7 +707,8 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
-  async function generateTodayReading(userData) {
+  
+async function generateTodayReading(userData) {
   await showTyping(1000);
   addMessage("Let me see what's shifting in your chart today...", 'nora');
   
@@ -743,11 +744,17 @@ function showDropdowns(config, callback) {
   typing.style.display = 'flex';
   
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15초로 늘리기
+    
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(todayData)
+      body: JSON.stringify(todayData), // 여기에 콤마 추가!
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
   
     typing.style.display = 'none';
     
@@ -772,8 +779,13 @@ function showDropdowns(config, callback) {
     }
   } catch(e) {
     typing.style.display = 'none';
-    await showTyping(600);
-    addMessage("Something's blocking the reading today. Try the full version?", 'nora');
+    if (e.name === 'AbortError') {
+      await showTyping(600);
+      addMessage("Reading is taking longer than expected. Let's try the full version?", 'nora');
+    } else {
+      await showTyping(600);
+      addMessage("Something's blocking the reading today. Try the full version?", 'nora');
+    }
     
     showChoices(['Try full reading', 'Start over'], async (choice) => {
       if (choice === 'Try full reading') {
