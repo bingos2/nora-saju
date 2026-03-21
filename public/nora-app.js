@@ -1664,16 +1664,14 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
   typing.style.display = 'flex';
   
   try {
-    // 대화 히스토리와 함께 GPT에게 전송
     const chatData = {
       type: 'advanced_chat',
       user_input: userInput,
       user_name: userData.name,
       conversation_history: conversationHistory,
       nora_persona: {
-        voice: "Gen Z, empathetic, slightly mystical, direct but caring",
-        background: "Korean saju reader who genuinely cares about people",
-        style: "Uses 'honestly', 'like', asks follow-up questions, remembers details"
+        voice: "Precise, direct, unexpectedly warm Korean saju reader",
+        background: "Can read people clearly, names patterns, doesn't just reflect back"
       }
     };
     
@@ -1698,29 +1696,33 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
         { role: 'nora', content: noraResponse }
       ];
       
-      // 대화 계속할지 물어보기
-      showChoices(['Keep talking', 'That helps, thanks'], async (choice) => {
-        if (choice === 'Keep talking') {
-          showTextInput('What else?', async (nextInput) => {
-            if (nextInput && nextInput.trim()) {
-              await handleAdvancedChat(nextInput, userData, newHistory);
-            } else {
-              await showTyping(600);
-              addMessage("I'm here whenever you need someone to listen. 💜", 'nora');
-            }
-          }, true);
+      // 🔥 핵심 변경: 선택지 대신 자유 입력
+      showTextInput('Type anything...', async (nextInput) => {
+        if (nextInput && nextInput.trim()) {
+          // 특정 키워드 체크
+          if (nextInput.toLowerCase().includes('reading') || 
+              nextInput.toLowerCase().includes('saju') ||
+              nextInput.toLowerCase().includes('chart')) {
+            
+            await showTyping(600);
+            addMessage("Want your full reading? That's $8.99.", 'nora');
+            
+            showChoices(['Yes, show me', 'Maybe later'], async (choice) => {
+              if (choice === 'Yes, show me') {
+                await initiatePayment(userData);
+              } else {
+                await handleAdvancedChat("I'm not ready for a reading yet", userData, newHistory);
+              }
+            });
+          } else {
+            // 대화 계속
+            await handleAdvancedChat(nextInput, userData, newHistory);
+          }
         } else {
           await showTyping(600);
-          addMessage("Glad I could help. Take care of yourself. 💜", 'nora');
-          
-          // 대화 기억으로 저장
-          saveConversationMemory(
-            conversationHistory[0]?.content || userInput,
-            newHistory.map(h => h.content).join(' '),
-            'Had a good chat'
-          );
+          addMessage("I'm here when you're ready to talk. 💜", 'nora');
         }
-      });
+      }, true);
       
     } else {
       throw new Error('Chat API failed');
@@ -1731,9 +1733,7 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
     console.error('Advanced chat error:', e);
     
     await showTyping(600);
-    addMessage("Sorry, I'm having trouble processing that right now. But I'm still here to listen.", 'nora');
-    
-    await startAdvancedChat(userData);
+    addMessage("Something's not working right now, but I'm still here.", 'nora');
   }
 }
   
