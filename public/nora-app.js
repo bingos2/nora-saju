@@ -1808,8 +1808,21 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
     typing.style.display = 'none';
     
     if (response.ok) {
-      const result = await response.json();
-      const noraResponse = result.response || "Something's not connecting right now."; // 🔥 개선된 fallback
+      let result;
+      const responseText = await response.text(); // JSON 대신 text로 먼저 받기
+      console.log('🔍 Raw response text:', responseText);
+      
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('🔴 JSON parse error:', parseError);
+        // JSON 파싱 실패시 응답을 정리해서 사용
+        const cleanText = responseText.replace(/[{}"]/g, '').trim();
+        result = { response: cleanText || "Let me think about that..." };
+      }
+      
+  const noraResponse = result.response || result || "Something's not connecting right now.";
+  console.log('🔍 Final response:', noraResponse);
 
       // 대화 히스토리 업데이트
       const newHistory = [...conversationHistory, 
