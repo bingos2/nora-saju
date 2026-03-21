@@ -707,37 +707,38 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
-  
   async function generateTodayReading(userData) {
-    await showTyping(1000);
-    addMessage("Let me see what's shifting in your chart today...", 'nora');
-    
-    // 저장된 사주 결과에서 element와 pillars 가져오기
-    let element = 'Unknown';
-    let pillars = null;
-
-    try {
-      const savedResults = localStorage.getItem('nora_saju_results');
-      if (savedResults) {
-        const sajuData = JSON.parse(savedResults);
-        // element 추출
-        if (sajuData.bubbles?.identity) {
-          const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
-          if (elementMatch) element = elementMatch[0];
-        }
-        pillars = sajuData.pillars;
+  await showTyping(1000);
+  addMessage("Let me see what's shifting in your chart today...", 'nora');
+  
+  // 저장된 사주 결과에서 element와 pillars 가져오기
+  let element = 'Unknown';
+  let pillars = null;
+  
+  try {
+    const savedResults = localStorage.getItem('nora_saju_results');
+    if (savedResults) {
+      const sajuData = JSON.parse(savedResults);
+      // element 추출
+      if (sajuData.bubbles?.identity) {
+        const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
+        if (elementMatch) element = elementMatch[0];
       }
-    } catch(e) {
-      console.error('Error reading saju data:', e);
+      pillars = sajuData.pillars;
     }
-    
-    const todayData = {
-      type: 'daily_reading',
-      date: new Date().toISOString().split('T')[0],
-      name: userData.name,
-      element: element,
-      pillars: pillars
-    };
+  } catch(e) {
+    console.error('Error reading saju data:', e);
+  }
+  
+  const todayData = {
+    type: 'daily_reading',
+    date: new Date().toISOString().split('T')[0],
+    name: userData.name,
+    element: element,
+    pillars: pillars
+  };
+  
+  console.log('Sending today data:', todayData); // 디버깅용
   
   typing.style.display = 'flex';
   
@@ -752,7 +753,17 @@ function showDropdowns(config, callback) {
     
     if (response.ok) {
       const result = await response.json();
-      const todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+      console.log('Raw result:', result); // 디버깅용
+      
+      // daily_reading 응답 구조 처리
+      let todayReading;
+      if (result.today) {
+        todayReading = result;
+      } else if (result.data) {
+        todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+      } else {
+        todayReading = result;
+      }
       
       await showTyping(800);
       addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
@@ -776,7 +787,7 @@ function showDropdowns(config, callback) {
     });
   }
 }
-
+  
 async function showSubscriptionOffer() {
   await showTyping(800);
   addMessage("I could track your patterns all month — deeper insights, better timing.", 'nora');
@@ -789,7 +800,7 @@ async function showSubscriptionOffer() {
     } else {
       addMessage("Perfect! You'll get your monthly insights in your inbox within 2 days.", 'nora');
       // 월간 구독 결제 로직 (PayPal subscription)
-      await setupMonthlySubscription(userData.name || userData.email);
+      await setupMonthlySubscription(userData.name);
     }
   });
 }
