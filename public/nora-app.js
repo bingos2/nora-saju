@@ -1693,24 +1693,50 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
     
     if (response.ok) {
       const result = await response.json();
-      const noraResponse = result.response || "I hear you. That sounds like a lot to process.";
+      const noraResponse = result.response || "Something's not connecting right now."; // 🔥 개선된 fallback
 
-      // 대화 히스토리 업데이트 (최대 20턴으로 제한)
+      // 대화 히스토리 업데이트
       const newHistory = [...conversationHistory, 
         { role: 'user', content: userInput },
         { role: 'nora', content: noraResponse }
-      ].slice(-20); // 🔥 메모리 누수 방지
+      ].slice(-20);
       
       await showTyping(800);
       
-      // 힌트 추가
+      // 🔥 8턴 후 강제 유도 (먼저 체크)
+      if (newHistory.length >= 8) {
+        addMessage(noraResponse, 'nora');
+        await showTyping(1000);
+        addMessage("You know what? Let me actually read your chart for this. Want me to show you what I see?", 'nora');
+        
+        showChoices(['Yes, read my chart', 'Keep talking'], async (choice) => {
+          if (choice === 'Yes, read my chart') {
+            await initiatePayment(userData);
+          } else {
+            // 🔥 개선: 재귀 대신 직접 마무리
+            await showTyping(800);
+            addMessage("I think your chart would give us better answers than just talking. Ready for your reading?", 'nora');
+            
+            showChoices(['Get my reading ($8.99)', 'Maybe later'], async (finalChoice) => {
+              if (finalChoice.includes('reading')) {
+                await initiatePayment(userData);
+              } else {
+                addMessage("All good. I'm here when you're ready! 🔮", 'nora');
+              }
+            });
+          }
+        });
+        return; // 여기서 확실히 종료
+      }
+      
+      // 6턴부터 힌트 추가
       if (newHistory.length >= 6) {
         addMessage(noraResponse + " (Want your chart? Just type 'reading')", 'nora');
       } else {
         addMessage(noraResponse, 'nora');
       }
       
-      // 자유 입력
+      // 자유 입력 (8턴 미만에서만)
       showTextInput('Type anything...', async (nextInput) => {
         if (nextInput && nextInput.trim()) {
           const readingKeywords = ['reading', 'read me', 'chart', 'saju', 'fortune', 'full reading'];
@@ -1724,8 +1750,9 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
               if (choice === 'Yes, show me') {
                 await initiatePayment(userData);
               } else {
-                // 🔥 수정: newHistory를 함수 스코프에서 접근 가능하게
-                await handleAdvancedChat("I'm not ready for a reading yet", userData, newHistory);
+                // 🔥 개선: 간단한 메시지로 마무리
+                await showTyping(600);
+                addMessage("No worries. I'm here when you're ready! 💜", 'nora');
               }
             });
           } else {
@@ -1813,6 +1840,17 @@ async function showUpsell(name) {
         }, true);
       }
     });
+  }
+
+  function extractSpecificIssue(topic) {
+    if (!topic) return 'general stuff';
+  
+    const message = topic.toLowerCase();
+    if (message.includes('husband') || message.includes('boyfriend')) return 'relationship issues';
+    if (message.includes('work') || message.includes('job')) return 'work stress';
+    if (message.includes('family')) return 'family problems';
+    if (message.includes('tired') || message.includes('stressed')) return 'feeling overwhelmed';
+    return 'personal stuff';
   }
   
   // Handle return after successful payment
