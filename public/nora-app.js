@@ -915,6 +915,33 @@ async function initiatePayment(userData) {
   // ──────────────────────────────────────────────────────────
   
   async function generateTodayReading(userData) {
+    const today = new Date().toDateString();
+    const cacheKey = `daily_reading_${userData.name}_${today}`;
+
+    // 🔥 오늘 이미 읽었는지 체크
+    const cachedReading = localStorage.getItem(cacheKey);
+    if (cachedReading) {
+      await showTyping(800);
+      addMessage(JSON.parse(cachedReading).today, 'nora');
+      await showTyping(600);
+      addMessage("Want the full deep-dive reading?", 'nora');
+      
+      showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
+        if (choice.includes('full reading')) {
+          await initiatePayment(userData);
+        } else {
+          // Maybe later 플로우
+          await showTyping(700);
+          addMessage("That's cool. Want to just chat for a bit?", 'nora');
+          showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
+      if (chatChoice === 'Sure, let\'s chat') {
+        await startAdvancedChat(userData);
+      } else {
+        addMessage("All good. See you when you're ready! 🌙", 'nora');
+      }
+    });      
+  }
+});
     await showTyping(1000);
     addMessage("Let me see what's shifting in your chart today...", 'nora');
     
@@ -992,6 +1019,8 @@ async function initiatePayment(userData) {
         } else {
           todayReading = result;
         }
+
+        localStorage.setItem(cacheKey, JSON.stringify(todayReading));
         
         await showTyping(800);
         addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
@@ -1733,6 +1762,23 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
         } else {
           await showTyping(600);
           addMessage("No worries. I'm here when you're ready! 💜", 'nora');
+          
+          await showTyping(800);
+          showChoices(['Start fresh conversation'], async (choice) => {
+            if (choice === 'Start fresh conversation') {
+              // 대화 초기화
+              await showTyping(600);
+              addMessage("So... what's really on your mind lately?", 'nora');
+              await showTyping(500);
+              addMessage("(By the way, if you want your full reading anytime, just type 'reading')", 'nora');
+              
+              showTextInput('Tell me anything...', async (userInput) => {
+                if (userInput && userInput.trim()) {
+                  await handleAdvancedChat(userInput, userData, []); // 새로운 대화 히스토리로 시작
+                }
+              }, true);
+            }
+          });
         }
       });
       return; // API 호출 안 함
@@ -1820,6 +1866,23 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
                 // 🔥 개선: 간단한 메시지로 마무리
                 await showTyping(600);
                 addMessage("No worries. I'm here when you're ready! 💜", 'nora');
+
+                await showTyping(800);
+                showChoices(['Start fresh conversation'], async (choice) => {
+                  if (choice === 'Start fresh conversation') {
+                    // 대화 초기화
+                    await showTyping(600);
+                    addMessage("So... what's really on your mind lately?", 'nora');
+                    await showTyping(500);
+                    addMessage("(By the way, if you want your full reading anytime, just type 'reading')", 'nora');
+                    
+                    showTextInput('Tell me anything...', async (userInput) => {
+                      if (userInput && userInput.trim()) {
+                        await handleAdvancedChat(userInput, userData, []); // 새로운 대화 히스토리로 시작
+                      }
+                    }, true);
+                  }
+                });
               }
             });
           } else {
