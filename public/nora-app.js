@@ -789,15 +789,25 @@ async function generateTodayReading(userData) {
       addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
       await showTyping(600);
       addMessage("Want the full deep-dive reading?", 'nora');
-      
+   
       showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
         if (choice.includes('full reading')) {
           showPayPalButton(userData.email || userData.name);
         } else {
-          addMessage("All good. See you when you're ready! 🌙", 'nora');
+          // Maybe later → 수다 플로우 시작
+          await showTyping(700);
+          addMessage("That's cool. Want to just chat for a bit?", 'nora');
+    
+          showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
+            if (chatChoice === 'Sure, let\'s chat') {
+              await startCasualChat();
+            } else {
+              addMessage("All good. See you when you're ready! 🌙", 'nora');
+            }
+          });
         }
       });
-    }
+      
   } catch(e) {
     typing.style.display = 'none';
     if (e.name === 'AbortError') {
@@ -820,6 +830,56 @@ async function generateTodayReading(userData) {
     });
   }
 }
+async function startCasualChat() {
+  await showTyping(800);
+  addMessage("So... anything weighing on you lately?", 'nora');
+  
+  showTextInput('Tell me what\'s up (or just say hi)', async (response) => {
+    if (response && response.trim()) {
+      await respondToCasualChat(response);
+    } else {
+      await showTyping(600);
+      addMessage("That's okay too. Sometimes silence says enough.", 'nora');
+      await showTyping(500);
+      addMessage("I'm here if you need someone to listen. 💜", 'nora');
+    }
+  }, true);
+}
+
+async function respondToCasualChat(userMessage) {
+  const message = userMessage.toLowerCase();
+  
+  await showTyping(900);
+  
+  if (message.includes('work') || message.includes('job') || message.includes('boss')) {
+    addMessage("Work stuff, huh? That can be heavy. What's the hardest part right now?", 'nora');
+  } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
+    addMessage("Relationship things are never simple. Want to tell me more about what's going on?", 'nora');
+  } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
+    addMessage("That sounds exhausting. When did you last do something just for you?", 'nora');
+  } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
+    addMessage("Family stuff can be complicated. How are you handling it?", 'nora');
+  } else if (message.includes('friend') || message.includes('people')) {
+    addMessage("People can be a lot sometimes. What's that person like?", 'nora');
+  } else {
+    addMessage("I hear you. Sometimes it helps just to say it out loud. How are you feeling about it?", 'nora');
+  }
+  
+  // 더 자연스러운 대화 이어가기
+  showTextInput('Keep going if you want...', async (followUp) => {
+    if (followUp && followUp.trim()) {
+      await showTyping(800);
+      addMessage("Thanks for sharing that with me. That takes courage. 💜", 'nora');
+    } else {
+      await showTyping(600);
+      addMessage("That's alright. You don't have to say more.", 'nora');
+    }
+    
+    await showTyping(600);
+    addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
+  }, true);
+}
+  
 function estimateElementFromBirthday(birthday) {
   // 간단한 연도 기반 추정 (정확하지는 않지만 fallback용)
   const year = parseInt(birthday.split('/')[2]);
