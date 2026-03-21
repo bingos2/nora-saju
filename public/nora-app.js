@@ -357,23 +357,23 @@ function showDropdowns(config, callback) {
               await showTyping(800);
               addMessage("Want to see what today has in store for you?", 'nora');
               
-              showChoices(['Show me today', 'Get full monthly reading'], async (choice) => {
+              showChoices(['Show me today', 'Get full reading'], async (choice) => {
                 if (choice === 'Show me today') {
                   await generateTodayReading(userData);
                 } else {
-                  await showSubscriptionOffer();
+                  await step4_extras(true);
                 }
               });
             } else {
               // Update info - ask what to update
-              await showTyping(600);
+                await showTyping(600);
               addMessage("What would you like to update?", 'nora');
               
-              showChoices(['Birthday', 'Birth time'], async (updateChoice) => {
-                if (updateChoice === 'Birthday') {
-                  // Go to birthday input, keep birth_time in localStorage
+              showChoices(['Birthday', 'Birth time', 'Get daily reading'], async (updateChoice) => {
+                if (updateChoice === 'Get daily reading') {
+                  await generateTodayReading(userData);
+                } else if (updateChoice === 'Birthday') {
                   const savedBirthTime = parsed.birth_time; // Save birth time
-                  // Don't remove localStorage - just reset userData
                   userData = {
                     name: parsed.name, // Keep name
                     birthday: '',
@@ -707,6 +707,20 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
+
+async function afterDailyReading() {
+  await showTyping(600);
+  addMessage("That's your vibe for today. Want the full deep-dive reading?", 'nora');
+  
+  showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
+    if (choice.includes('full reading')) {
+      // 기존 결제 플로우
+      showPayPalButton(userData.email);
+    } else {
+      addMessage("All good. See you when you're ready! 🌙", 'nora');
+    }
+  });
+}
   
 async function generateTodayReading(userData) {
   await showTyping(1000);
@@ -1559,27 +1573,27 @@ async function showUpsell(name) {
       await showTyping(700);
       addMessage("And if it hits different... you know what to do 👀", 'nora');
       await showTyping(800);
-showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
-  if (choice === 'Start a new reading') {
-    conversationStarted = false;
-    sajuResults = null;
-    viewedCategories = [];
-    localStorage.removeItem('nora_last_used');
-    chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
-    typing = document.getElementById('typing');
-    dmScreen.classList.remove('active');
-    coverScreen.classList.add('active');
-  } else {
-    const baseUrl = 'https://readnora.com';
-    const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
-    if (navigator.share) {
-      try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
-    } else {
-      await navigator.clipboard.writeText(shareText);
-      addMessage("Copied! Send it to someone 👀", 'nora');
-    }
-  }
-});
+      showChoices(['Start a new reading', '🔗 Send to a friend'], async (choice) => {
+        if (choice === 'Start a new reading') {
+          conversationStarted = false;
+          sajuResults = null;
+          viewedCategories = [];
+          localStorage.removeItem('nora_last_used');
+          chat.innerHTML = '<div class="typing" id="typing"><span class="typing-text">Nora is typing</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>';
+          typing = document.getElementById('typing');
+          dmScreen.classList.remove('active');
+          coverScreen.classList.add('active');
+        } else {
+          const baseUrl = 'https://readnora.com';
+          const shareText = `I just got my full Korean saju reading and it somehow knew everything about me 😭🔮\nwhat's yours → ${baseUrl}`;
+          if (navigator.share) {
+            try { await navigator.share({ text: shareText, url: baseUrl }); } catch(e) {}
+          } else {
+            await navigator.clipboard.writeText(shareText);
+            addMessage("Copied! Send it to someone 👀", 'nora');
+          }
+        }
+      });
     }, 500);
   }
 }
