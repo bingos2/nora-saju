@@ -715,6 +715,7 @@ async function generateTodayReading(userData) {
   const todayData = {
     type: 'daily_reading',
     date: new Date().toISOString().split('T')[0],
+    name: userData.name,
     element: userData.element,
     pillars: userData.pillars
   };
