@@ -386,6 +386,8 @@ async function initiatePayment(userData) {
             if (backChoice === 'Sure, let\'s chat') {
               await startAdvancedChat(userData);
             } else if (backChoice === 'Show me today\'s reading') {
+              const kstData = convertToKST(userData);
+              userData = kstData;
               await generateTodayReading(userData);
             } else {
               addMessage("All good. See you when you're ready! 🌙", 'nora');
@@ -451,6 +453,8 @@ async function initiatePayment(userData) {
             
             showChoices(['Show me today', 'Get full reading'], async (choice) => {
               if (choice === 'Show me today') {
+                const kstData = convertToKST(userData);
+                userData = kstData;
                 await generateTodayReading(userData);
               } else {
                 await initiatePayment(userData);
@@ -494,30 +498,50 @@ async function initiatePayment(userData) {
               for (let i = currentYear; i >= 1900; i--) {
                 years.push({ value: String(i), label: String(i) });
               }
+
+              const timezones = [
+                { value: 'America/Los_Angeles', label: 'Pacific Standard Time (PST)', short: 'PST' },
+                { value: 'America/Denver', label: 'Mountain Standard Time (MST)', short: 'MST' },
+                { value: 'America/Chicago', label: 'Central Standard Time (CST)', short: 'CST' },
+                { value: 'America/New_York', label: 'Eastern Standard Time (EST)', short: 'EST' },
+                { value: 'America/Anchorage', label: 'Alaska Standard Time (AST)', short: 'AST' },
+                { value: 'Pacific/Honolulu', label: 'Hawaii-Aleutian Standard Time (HST)', short: 'HST' }
+              ];
+              
               showDropdowns([
                 [
                   { id: 'month', options: months },
                   { id: 'day', options: days },
                   { id: 'year', options: years }
+                ],
+                [
+                  { id: 'timezone', options: timezones }
                 ]
               ], async (values) => {
                 const newBirthday = `${values.month}/${values.day}/${values.year}`;
-
-                // localStorage 업데이트
+                const selectedTz = timezones.find(tz => tz.value === values.timezone);
+                const newTimezoneShort = selectedTz ? selectedTz.short : 'ET';
+                
                 const savedData = JSON.parse(localStorage.getItem('nora_user_data'));
                 savedData.birthday = newBirthday;
+                savedData.timezone = values.timezone;
+                savedData.timezone_short = newTimezoneShort;
                 localStorage.setItem('nora_user_data', JSON.stringify(savedData));
+                
                 // userData도 업데이트
                 userData.birthday = newBirthday;
+                userData.timezone = values.timezone;
+                userData.timezone_short = newTimezoneShort;
                 userData.name = savedData.name;
-                userData.timezone = savedData.timezone;
-                userData.timezone_short = savedData.timezone_short;
                 userData.birth_time = savedData.birth_time;
                 userData.birthday_confirmed = true;
+                
                 await showTyping(700);
                 addMessage("Updated! Want to see what today has in store for you?", 'nora');
                 showChoices(['Show me today', 'Get full reading'], async (choice) => {
                   if (choice === 'Show me today') {
+                    const kstData = convertToKST(userData);
+                    userData = kstData;
                     await generateTodayReading(userData);
                   } else {
                     await initiatePayment(userData);
@@ -572,6 +596,8 @@ async function initiatePayment(userData) {
                 addMessage("Updated! Want to see what today has in store for you?", 'nora');
                 showChoices(['Show me today', 'Get full reading'], async (choice) => {
                   if (choice === 'Show me today') {
+                    const kstData = convertToKST(userData);
+                    userData = kstData;
                     await generateTodayReading(userData);
                   } else {
                     await initiatePayment(userData);
@@ -1015,15 +1041,17 @@ async function initiatePayment(userData) {
 
   
   function saveConversationMemory(topic, details, resolution) {
+
     const memory = {
-      date: new Date().toDateString(),
+       date: new Date().toDateString(),
       topic: topic,
       details: details || '',
       resolution: resolution || '',
       timestamp: Date.now(),
       category: identifyCategory(topic),
-      specific_issue: extractSpecificIssue(topic) // 새로 추가
-        };
+      specific_issue: extractSpecificIssue(topic)
+    };
+    
     localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
   }
 
@@ -1073,17 +1101,29 @@ function isRecentMemory(memory) {
     return elements[lastDigit] || 'Unknown';
   }
 
-  function convertToKST(userData) {
+function convertToKST(userData) {
+  // 입력 데이터 검증
+  if (!userData.birthday) {
+    console.error('Missing birthday data');
+    return userData;
+  }
+
+  try {
+    const [month, day, year] = userData.birthday.split('/').map(Number);
+    
+    // 유효성 검증
+    if (!month || !day || !year || month > 12 || day > 31) {
+      throw new Error('Invalid date format');
+    }
+
     if (userData.birth_time === 'unknown') {
       // 시간 모를 때: 날짜만으로 pillars 계산 (00:00 KST 기준)
-      const [month, day, year] = userData.birthday.split('/').map(Number);
       const pillars = calcPillars(year, month, day, 0, 0);
       if (pillars) console.log('🀄 Pillars (no time):', pillars);
       return { ...userData, pillars };
     }
     
-    // Parse input
-    const [month, day, year] = userData.birthday.split('/').map(Number);
+    // 시간 있을 때 KST 변환
     const [hour, minute] = userData.birth_time.split(':').map(Number);
     
     // Timezone offsets from UTC (in hours)
@@ -1100,7 +1140,7 @@ function isRecentMemory(memory) {
     const kstOffset = 9;
     
     // Convert to UTC, then to KST
-    const hoursToAdd = kstOffset - userOffset; // e.g., 9 - (-8) = 17
+    const hoursToAdd = kstOffset - userOffset;
     
     // Create date and add hours
     let kstDate = new Date(year, month - 1, day, hour, minute);
@@ -1114,7 +1154,7 @@ function isRecentMemory(memory) {
     
     console.log(`🌍 ${userData.birthday} ${userData.birth_time} ${userData.timezone_short} → ${kstMonth}/${kstDay}/${kstYear} ${kstHour}:${kstMinute} KST`);
 
-    // ── pillars 계산 (KST 기준) ──
+    // pillars 계산 (KST 기준)
     const pillars = calcPillars(kstDate.getFullYear(), kstDate.getMonth()+1, kstDate.getDate(), kstDate.getHours(), kstDate.getMinutes());
     if (pillars) console.log('🀄 Pillars:', pillars);
 
@@ -1128,7 +1168,12 @@ function isRecentMemory(memory) {
       original_timezone_short: userData.timezone_short,
       pillars: pillars
     };
+
+  } catch(e) {
+    console.error('KST conversion error:', e);
+    return userData; // 원본 데이터 반환
   }
+}
 
   // PayPal 버튼 표시 함수
   function showPayPalButton(email) {
@@ -1522,7 +1567,7 @@ function isRecentMemory(memory) {
     const memory = getConversationMemory();
     if (memory && isRecentMemory(memory)) {
       await showTyping(800);
-      addMessage(`Hey! Last time you mentioned ${memory.specific_issue}. How's that going?`, 'nora');
+      addMessage(`Hey! Last time you mentioned ${memory.specific_issue || 'personal stuff'}. How's that going?`, 'nora');
     
     showChoices(['Much better', 'Still tough', 'Let\'s talk about today'], async (choice) => {
       if (choice === 'Let\'s talk about today') {
@@ -1532,6 +1577,8 @@ function isRecentMemory(memory) {
         
         showChoices(['Show me today', 'Get full reading'], async (choice) => {
           if (choice === 'Show me today') {
+            const kstData = convertToKST(userData);
+            userData = kstData;
             await generateTodayReading(userData);
           } else {
             await initiatePayment(userData);
@@ -1672,6 +1719,26 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
   typing.style.display = 'flex';
   
   try {
+    // 먼저 키워드 체크 (API 호출 전에)
+    const readingKeywords = ['reading', 'read me', 'chart', 'saju', 'fortune', 'full reading'];
+    const userMessage = userInput.toLowerCase();
+    if (readingKeywords.some(keyword => userMessage.includes(keyword))) {
+      typing.style.display = 'none';
+      await showTyping(600);
+      addMessage("Ready for your full reading? That's $8.99.", 'nora');
+      
+      showChoices(['Yes, show me', 'Maybe later'], async (choice) => {
+        if (choice === 'Yes, show me') {
+          await initiatePayment(userData);
+        } else {
+          await showTyping(600);
+          addMessage("No worries. I'm here when you're ready! 💜", 'nora');
+        }
+      });
+      return; // API 호출 안 함
+    }
+
+    // 🔥 키워드 없을 때만 API 호출 (try 하나로 통합)
     const chatData = {
       type: 'advanced_chat',
       user_input: userInput,
@@ -1772,7 +1839,6 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
   } catch(e) {
     typing.style.display = 'none';
     console.error('Advanced chat error:', e);
-    
     await showTyping(600);
     addMessage("Something's not working right now, but I'm still here.", 'nora');
   }
