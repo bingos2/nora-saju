@@ -1015,18 +1015,26 @@ async function initiatePayment(userData) {
 
   
   function saveConversationMemory(topic, details, resolution) {
-  const memory = {
-    date: new Date().toDateString(),
-    topic: topic,
-    details: details || '',
-    resolution: resolution || '',
-    timestamp: Date.now(),
-    category: identifyCategory(topic)
-  };
-  
-  localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
-  console.log('💭 Saved conversation memory:', memory);
-}
+    const memory = {
+      date: new Date().toDateString(),
+      topic: topic,
+      details: details || '',
+      resolution: resolution || '',
+      timestamp: Date.now(),
+      category: identifyCategory(topic),
+      specific_issue: extractSpecificIssue(topic) // 새로 추가
+        };
+    localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
+  }
+
+  function extractSpecificIssue(topic) {
+    const message = topic.toLowerCase();
+    if (message.includes('husband') || message.includes('boyfriend')) return 'relationship';
+    if (message.includes('work') || message.includes('job')) return 'work stress';
+    if (message.includes('family')) return 'family issues';
+    if (message.includes('tired') || message.includes('stressed')) return 'feeling overwhelmed';
+    return 'personal stuff';
+  }
 
   function identifyCategory(topic) {
     const message = topic.toLowerCase();
@@ -1511,10 +1519,10 @@ function isRecentMemory(memory) {
   }
 
   async function checkPreviousConversation() {
-  const memory = getConversationMemory();
-  if (memory && isRecentMemory(memory)) {
-    await showTyping(800);
-    addMessage(`Hey! You mentioned ${memory.category} stuff last time. How's that going?`, 'nora');
+    const memory = getConversationMemory();
+    if (memory && isRecentMemory(memory)) {
+      await showTyping(800);
+      addMessage(`Hey! Last time you mentioned ${memory.specific_issue}. How's that going?`, 'nora');
     
     showChoices(['Much better', 'Still tough', 'Let\'s talk about today'], async (choice) => {
       if (choice === 'Let\'s talk about today') {
@@ -1532,8 +1540,7 @@ function isRecentMemory(memory) {
       } else {
         await startAdvancedChat(userData);  // GPT가 알아서 처리
       }
-    });
-    
+    });   
     return true;
   }
   return false;
@@ -1647,18 +1654,19 @@ function isRecentMemory(memory) {
   }
 
   async function startAdvancedChat(userData) {
-  await showTyping(800);
-  addMessage("So... what's really on your mind lately?", 'nora');
-  
-  showTextInput('Tell me anything...', async (userInput) => {
-    if (userInput && userInput.trim()) {
-      await handleAdvancedChat(userInput, userData, []);
-    } else {
-      await showTyping(600);
-      addMessage("That's okay. Sometimes silence says enough too. 💜", 'nora');
-    }
-  }, true);
-}
+    await showTyping(800);
+    addMessage("So... what's really on your mind lately?", 'nora');
+    await showTyping(500);
+    addMessage("(By the way, if you want your full reading anytime, just type 'reading')", 'nora');
+    showTextInput('Tell me anything...', async (userInput) => {
+      if (userInput && userInput.trim()) {
+        await handleAdvancedChat(userInput, userData, []);
+      } else {
+        await showTyping(600);
+        addMessage("That's okay. Sometimes silence says enough too. 💜", 'nora');
+      }
+    }, true);
+  }
 
 async function handleAdvancedChat(userInput, userData, conversationHistory) {
   typing.style.display = 'flex';
@@ -1686,31 +1694,37 @@ async function handleAdvancedChat(userInput, userData, conversationHistory) {
     if (response.ok) {
       const result = await response.json();
       const noraResponse = result.response || "I hear you. That sounds like a lot to process.";
-      
-      await showTyping(800);
-      addMessage(noraResponse, 'nora');
-      
-      // 대화 히스토리 업데이트
+
+      // 대화 히스토리 업데이트 (최대 20턴으로 제한)
       const newHistory = [...conversationHistory, 
         { role: 'user', content: userInput },
         { role: 'nora', content: noraResponse }
-      ];
+      ].slice(-20); // 🔥 메모리 누수 방지
       
-      // 🔥 핵심 변경: 선택지 대신 자유 입력
+      await showTyping(800);
+      
+      // 힌트 추가
+      if (newHistory.length >= 6) {
+        addMessage(noraResponse + " (Want your chart? Just type 'reading')", 'nora');
+      } else {
+        addMessage(noraResponse, 'nora');
+      }
+      
+      // 자유 입력
       showTextInput('Type anything...', async (nextInput) => {
         if (nextInput && nextInput.trim()) {
-          // 특정 키워드 체크
-          if (nextInput.toLowerCase().includes('reading') || 
-              nextInput.toLowerCase().includes('saju') ||
-              nextInput.toLowerCase().includes('chart')) {
-            
+          const readingKeywords = ['reading', 'read me', 'chart', 'saju', 'fortune', 'full reading'];
+          const userMessage = nextInput.toLowerCase();
+          
+          if (readingKeywords.some(keyword => userMessage.includes(keyword))) {
             await showTyping(600);
-            addMessage("Want your full reading? That's $8.99.", 'nora');
+            addMessage("Ready for your full reading? That's $8.99.", 'nora');
             
             showChoices(['Yes, show me', 'Maybe later'], async (choice) => {
               if (choice === 'Yes, show me') {
                 await initiatePayment(userData);
               } else {
+                // 🔥 수정: newHistory를 함수 스코프에서 접근 가능하게
                 await handleAdvancedChat("I'm not ready for a reading yet", userData, newHistory);
               }
             });
