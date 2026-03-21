@@ -369,10 +369,8 @@ function showDropdowns(config, callback) {
                 await showTyping(600);
               addMessage("What would you like to update?", 'nora');
               
-              showChoices(['Birthday', 'Birth time', 'Get daily reading'], async (updateChoice) => {
-                if (updateChoice === 'Get daily reading') {
-                  await generateTodayReading(userData);
-                } else if (updateChoice === 'Birthday') {
+              showChoices(['Birthday', 'Birth time'], async (updateChoice) => {
+                if (updateChoice === 'Birthday') {
                   const savedBirthTime = parsed.birth_time; // Save birth time
                   userData = {
                     name: parsed.name, // Keep name
