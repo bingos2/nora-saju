@@ -344,7 +344,6 @@ function showDropdowns(config, callback) {
   }
 
   // Unified payment flow
-// Unified payment flow
 async function initiatePayment(userData) {
   await showTyping(600);
   addMessage("Where should I send your full reading? 📩", 'nora');
@@ -934,14 +933,17 @@ async function initiatePayment(userData) {
           await showTyping(700);
           addMessage("That's cool. Want to just chat for a bit?", 'nora');
           showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
-      if (chatChoice === 'Sure, let\'s chat') {
-        await startAdvancedChat(userData);
-      } else {
-        addMessage("All good. See you when you're ready! 🌙", 'nora');
-      }
-    });      
-  }
-});
+            if (chatChoice === 'Sure, let\'s chat') {
+              await startAdvancedChat(userData);
+            } else {
+              addMessage("All good. See you when you're ready! 🌙", 'nora');
+            }
+          });      
+        }
+      });
+      return; // 여기서 함수 종료
+    }
+
     await showTyping(1000);
     addMessage("Let me see what's shifting in your chart today...", 'nora');
     
@@ -1070,9 +1072,8 @@ async function initiatePayment(userData) {
 
   
   function saveConversationMemory(topic, details, resolution) {
-
     const memory = {
-       date: new Date().toDateString(),
+      date: new Date().toDateString(),
       topic: topic,
       details: details || '',
       resolution: resolution || '',
@@ -2020,8 +2021,9 @@ async function showUpsell(name) {
           }
         }
       });
+    }, 500);
   }
 }
   console.log('✅ All event listeners attached');
   checkPaidReturn();
-});
+})();
