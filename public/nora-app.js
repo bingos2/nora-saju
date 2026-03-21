@@ -1736,6 +1736,7 @@ function convertToKST(userData) {
     await showTyping(500);
     addMessage("(By the way, if you want your full reading anytime, just type 'reading')", 'nora');
     showTextInput('Tell me anything...', async (userInput) => {
+      console.log('🔍 User input received:', userInput); // 디버깅 로그
       if (userInput && userInput.trim()) {
         await handleAdvancedChat(userInput, userData, []);
       } else {
@@ -1746,6 +1747,7 @@ function convertToKST(userData) {
   }
 
 async function handleAdvancedChat(userInput, userData, conversationHistory) {
+  console.log('🔍 handleAdvancedChat called with:', { userInput, userData, conversationHistory }); 
   typing.style.display = 'flex';
   
   try {
