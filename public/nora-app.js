@@ -2020,9 +2020,8 @@ async function showUpsell(name) {
           }
         }
       });
-    }, 500);
   }
 }
   console.log('✅ All event listeners attached');
   checkPaidReturn();
-}();
+});
