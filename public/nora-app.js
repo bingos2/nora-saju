@@ -739,18 +739,41 @@ async function generateTodayReading(userData) {
       await showTyping(600);
       await showSubscriptionOffer();
     }
-  } catch(e) {  // catch가 try 안에 들어가야 함
+  } catch(e) {
     typing.style.display = 'none';
     await showTyping(600);
     addMessage("Something's blocking the reading today. Try the full version?", 'nora');
-    await showSubscriptionOffer();
+    
+    showChoices(['Try full reading', 'Start over'], async (choice) => {
+      if (choice === 'Try full reading') {
+        await step4_extras(true);
+      } else {
+        conversationStarted = false;
+        sajuResults = null;
+        localStorage.removeItem('nora_user_data');
+        location.reload();
+      }
+    });
   }
-}  // 여기서 함수 끝
+}
 
 async function showSubscriptionOffer() {
   await showTyping(800);
-  addMessage("Let me track your patterns all month for deeper insights.", 'nora');
-  // 구독 로직 추가 필요
+  addMessage("I could track your patterns all month — deeper insights, better timing.", 'nora');
+  await showTyping(600);
+  addMessage("$12.99/month. Worth it?", 'nora');
+  
+  showChoices(['Yes, track me', 'Just today ($3.99)', 'Not now'], async (choice) => {
+    if (choice === 'Not now') {
+      addMessage("All good. See you when you're ready. 🌙", 'nora');
+    } else if (choice === 'Yes, track me') {
+      addMessage("Monthly subscription coming soon! For now, let's do the full reading.", 'nora');
+      await step4_extras(true);
+    } else {
+      addMessage("One-time daily reading coming soon! Let's do the full version for now.", 'nora');
+      await step4_extras(true);
+    }
+  });
 }
 
  function convertToKST(userData) {
