@@ -739,32 +739,33 @@ async function generateTodayReading(userData) {
     pillars: pillars
   };
   
-  console.log('Sending today data:', todayData); // 디버깅용
+  console.log('Sending today data:', todayData);
   
   typing.style.display = 'flex';
   
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15초로 늘리기
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(todayData), // 여기에 콤마 추가!
+      body: JSON.stringify(todayData),
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
-  
     typing.style.display = 'none';
     
     if (response.ok) {
       const result = await response.json();
-      console.log('Raw result:', result); // 디버깅용
+      console.log('Raw result:', result); 
       
-      // daily_reading 응답 구조 처리
       let todayReading;
-      if (result.today) {
+      if (Array.isArray(result) && result[0]?.text) {
+        const textContent = result[0].text;
+        todayReading = JSON.parse(textContent);
+      } else if (result.today) {
         todayReading = result;
       } else if (result.data) {
         todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
@@ -775,7 +776,15 @@ async function generateTodayReading(userData) {
       await showTyping(800);
       addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
       await showTyping(600);
-      await showSubscriptionOffer();
+      addMessage("Want the full deep-dive reading?", 'nora');
+      
+      showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
+        if (choice.includes('full reading')) {
+          showPayPalButton(userData.email || userData.name);
+        } else {
+          addMessage("All good. See you when you're ready! 🌙", 'nora');
+        }
+      });
     }
   } catch(e) {
     typing.style.display = 'none';
@@ -798,23 +807,6 @@ async function generateTodayReading(userData) {
       }
     });
   }
-}
-  
-async function showSubscriptionOffer() {
-  await showTyping(800);
-  addMessage("I could track your patterns all month — deeper insights, better timing.", 'nora');
-  await showTyping(600);
-  addMessage("$5.99/month. Worth it?", 'nora');
-  
-  showChoices(['Yes, track me', 'Not now'], async (choice) => {
-    if (choice === 'Not now') {
-      addMessage("All good. See you when you're ready. 🌙", 'nora');
-    } else {
-      addMessage("Perfect! You'll get your monthly insights in your inbox within 2 days.", 'nora');
-      // 월간 구독 결제 로직 (PayPal subscription)
-      await setupMonthlySubscription(userData.name);
-    }
-  });
 }
 
  function convertToKST(userData) {
