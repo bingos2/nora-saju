@@ -1009,10 +1009,11 @@ function showDropdowns(config, callback) {
   }
 
   async function respondToCasualChat(userMessage, isFirstResponse = true) {
+  let previousInput = '';
   const message = userMessage.toLowerCase();
-  
+
   await showTyping(900);
-  
+
   if (isFirstResponse) {
     // 첫 번째 응답 - 공감하고 구체적 질문
     if (message.includes('work') || message.includes('job') || message.includes('boss')) {
@@ -1030,22 +1031,23 @@ function showDropdowns(config, callback) {
     } else {
       addMessage("That sounds like it's really weighing on you. How long has this been sitting in your mind?", 'nora');
     }
-    
+
     // 두 번째 응답을 위한 입력
     showTextInput('Tell me more...', async (followUp) => {
       if (followUp && followUp.trim()) {
-        await respondToCasualChat(followUp, false); // 두 번째 라운드
-      } else {
+        previousInput = followUp; // 저장
+        await respondToCasualChat(followUp, false);
+      } else {  // ✅ } 하나만!
         await showTyping(600);
         addMessage("Sometimes it's hard to put into words. That's okay too.", 'nora');
         await endChatNaturally();
       }
     }, true);
-    
+
   } else {
     // 두 번째 응답 - 더 깊이 들어가고 해결책 제시
     await showTyping(800);
-    
+
     if (message.includes('better') || message.includes('good') || message.includes('fine')) {
       addMessage("I'm glad to hear that. What helped shift things for you?", 'nora');
     } else if (message.includes('worse') || message.includes('terrible') || message.includes('awful')) {
@@ -1053,7 +1055,7 @@ function showDropdowns(config, callback) {
     } else {
       addMessage("I can hear how much this matters to you. If you could change one thing about this situation, what would it be?", 'nora');
     }
-    
+
     // 마지막 입력
     showTextInput('What would help?', async (finalThought) => {
       await showTyping(700);
@@ -1061,12 +1063,12 @@ function showDropdowns(config, callback) {
         addMessage("Thank you for trusting me with this. You're processing things really thoughtfully. 💜", 'nora');
         
         // 대화 기억하기
-        saveConversationMemory(userMessage, followUp, finalThought);
+        saveConversationMemory(userMessage, previousInput, finalThought);
       } else {
         addMessage("Sometimes just being heard is enough. Thank you for sharing with me. 💜", 'nora');
         
         // 첫 번째 메시지만 기억
-        saveConversationMemory(userMessage, followUp, '');
+        saveConversationMemory(userMessage, previousInput, '');  // ✅ followUp → previousInput
       }
       
       await showTyping(600);
