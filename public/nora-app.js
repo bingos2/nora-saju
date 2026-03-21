@@ -872,7 +872,7 @@ function showDropdowns(config, callback) {
             });
           }
         });
-        
+      }        
     } catch(e) {
       typing.style.display = 'none';
       if (e.name === 'AbortError') {
