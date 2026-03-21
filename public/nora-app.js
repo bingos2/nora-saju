@@ -114,7 +114,6 @@
     reaction: ''
   };
 
-  // Mock saju results
   // Saju results (will be filled from webhook response)
   let sajuResults = null;
 
@@ -306,6 +305,7 @@ function showDropdowns(config, callback) {
     inputArea.classList.add('show');
     scrollToBottom();
   }
+
   function detectTimezone() {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
@@ -314,95 +314,161 @@ function showDropdowns(config, callback) {
     }
   }
 
-  // Conversation flow
-  async function startConversation() {
-    // Check localStorage for saved data
-    const savedData = localStorage.getItem('nora_user_data');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.name && parsed.birthday && parsed.timezone_short) {
-          await showTyping(650);
-          addMessage(`Hey ${parsed.name}!`, 'nora');
-          
-          await showTyping(700);
-          
-          // Build info message with birth time if available
-          let infoMessage = `I have you as ${parsed.birthday}`;
-          if (parsed.birth_time && parsed.birth_time !== 'unknown') {
-            // Convert 24h to 12h format for display
-            const hour24 = parseInt(parsed.birth_time.split(':')[0]);
-            const minute = parsed.birth_time.split(':')[1];
-            const hour12 = hour24 === 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-            const ampm = hour24 >= 12 ? 'PM' : 'AM';
-            infoMessage += `, ${hour12}:${minute} ${ampm}`;
-          }
-          infoMessage += `, ${parsed.timezone_short}.<br>Still accurate?`;
-          
-          addMessage(infoMessage, 'nora');
-          
-          showChoices(['Yes', 'Update info'], async (choice) => {
-            if (choice === 'Yes') {
-              // Use saved data
-              userData.name = parsed.name;
-              userData.birthday = parsed.birthday;
-              userData.timezone = parsed.timezone;
-              userData.timezone_short = parsed.timezone_short;
-              userData.birth_time = parsed.birth_time || 'unknown';
-              userData.birthday_confirmed = true;
+  // ──────────────────────────────────────────────────────────
+  // 🔧 IMPROVED USER EXPERIENCE FLOWS
+  // ──────────────────────────────────────────────────────────
 
-              // 새로운 returning user 플로우
-              await showTyping(700);
-              addMessage(`Welcome back, ${parsed.name}. 🔮`, 'nora');
-              await showTyping(800);
-              addMessage("Want to see what today has in store for you?", 'nora');
-              
-              showChoices(['Show me today', 'Get full reading'], async (choice) => {
-                if (choice === 'Show me today') {
-                  await generateTodayReading(userData);
-                } else {
-                  await step4_extras(true);
-                }
-              });
-            } else {
-              // Update info - ask what to update
-                await showTyping(600);
-              addMessage("What would you like to update?", 'nora');
-              
-              showChoices(['Birthday', 'Birth time'], async (updateChoice) => {
-                if (updateChoice === 'Birthday') {
-                  const savedBirthTime = parsed.birth_time; // Save birth time
-                  userData = {
-                    name: parsed.name, // Keep name
-                    birthday: '',
-                    birthday_confirmed: false,
-                    timezone: '',
-                    timezone_short: '',
-                    extras_opt_in: 'no',
-                    birth_time: savedBirthTime || 'unknown', // Keep birth time
-                    note: ''
-                  };
-                  await step2_birthday();
-                } else {
-                  // Go to birth time input
-                  userData.name = parsed.name;
-                  userData.birthday = parsed.birthday;
-                  userData.timezone = parsed.timezone;
-                  userData.timezone_short = parsed.timezone_short;
-                  userData.birthday_confirmed = true;
-                  await step5_birthTimeKnown(true); // Skip explanation
-                }
-              });
-            }
-          });
+  function isReturningUser() {
+    const savedData = localStorage.getItem('nora_user_data');
+    if (!savedData) return false;
+    
+    try {
+      const parsed = JSON.parse(savedData);
+      return parsed.name && parsed.birthday && parsed.timezone_short;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hasCompleteSajuReading() {
+    const savedResults = localStorage.getItem('nora_saju_results');
+    if (!savedResults) return false;
+    
+    try {
+      const results = JSON.parse(savedResults);
+      return results.bubbles && results.categories;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Unified payment flow
+  async function initiatePayment(userData) {
+    await showTyping(600);
+    addMessage("Where should I send your full reading? 📩", 'nora');
+    
+    const askForEmail = async () => {
+      showTextInput('Your email', async (email) => {
+        if (!email || !email.includes('@')) {
+          await showTyping(400);
+          addMessage("Hmm, that doesn't look right — try again?", 'nora');
+          askForEmail();
           return;
         }
-      } catch (e) {
-        console.error('Error loading saved data:', e);
+        
+        hideAllInputs();
+        await showTyping(600);
+        addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+        await showTyping(500);
+        
+        if (typeof paypal === 'undefined') {
+          await new Promise((resolve) => {
+            const checkPaypal = setInterval(() => {
+              if (typeof paypal !== 'undefined') {
+                clearInterval(checkPaypal);
+                resolve();
+              }
+            }, 100);
+          });
+        }
+        
+        showPayPalButton(email);
+      }, false);
+    };
+    askForEmail();
+  }
+
+  // Conversation flow
+  async function startConversation() {
+    const isReturning = isReturningUser();
+    const hasFullReading = hasCompleteSajuReading();
+    
+    if (isReturning) {
+      const savedData = JSON.parse(localStorage.getItem('nora_user_data'));
+      
+      await showTyping(650);
+      addMessage(`Hey ${savedData.name}!`, 'nora');
+      
+      await showTyping(700);
+      
+      // Build info message with birth time if available
+      let infoMessage = `I have you as ${savedData.birthday}`;
+      if (savedData.birth_time && savedData.birth_time !== 'unknown') {
+        // Convert 24h to 12h format for display
+        const hour24 = parseInt(savedData.birth_time.split(':')[0]);
+        const minute = savedData.birth_time.split(':')[1];
+        const hour12 = hour24 === 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+        const ampm = hour24 >= 12 ? 'PM' : 'AM';
+        infoMessage += `, ${hour12}:${minute} ${ampm}`;
       }
+      infoMessage += `, ${savedData.timezone_short}.<br>Still accurate?`;
+      
+      addMessage(infoMessage, 'nora');
+      
+      showChoices(['Yes', 'Update info'], async (choice) => {
+        if (choice === 'Yes') {
+          // Use saved data
+          userData.name = savedData.name;
+          userData.birthday = savedData.birthday;
+          userData.timezone = savedData.timezone;
+          userData.timezone_short = savedData.timezone_short;
+          userData.birth_time = savedData.birth_time || 'unknown';
+          userData.birthday_confirmed = true;
+
+          await showTyping(700);
+          addMessage(`Welcome back, ${savedData.name}. 🔮`, 'nora');
+          
+          if (hasFullReading) {
+            // Has complete reading - offer daily or full
+            await showTyping(800);
+            addMessage("Want to see what today has in store for you?", 'nora');
+            
+            showChoices(['Show me today', 'Get full reading'], async (choice) => {
+              if (choice === 'Show me today') {
+                await generateTodayReading(userData);
+              } else {
+                await initiatePayment(userData);
+              }
+            });
+          } else {
+            // Incomplete data - continue from where left off
+            await step8_sendWebhook();
+          }
+        } else {
+          // Update info - ask what to update
+          await showTyping(600);
+          addMessage("What would you like to update?", 'nora');
+          
+          showChoices(['Birthday', 'Birth time'], async (updateChoice) => {
+            if (updateChoice === 'Birthday') {
+              const savedBirthTime = savedData.birth_time; // Save birth time
+              userData = {
+                name: savedData.name, // Keep name
+                birthday: '',
+                birthday_confirmed: false,
+                timezone: '',
+                timezone_short: '',
+                extras_opt_in: 'no',
+                birth_time: savedBirthTime || 'unknown', // Keep birth time
+                note: ''
+              };
+              await step2_birthday();
+            } else {
+              // Go to birth time input
+              userData.name = savedData.name;
+              userData.birthday = savedData.birthday;
+              userData.timezone = savedData.timezone;
+              userData.timezone_short = savedData.timezone_short;
+              userData.birthday_confirmed = true;
+              await step5_birthTimeKnown(true); // Skip explanation
+            }
+          });
+        }
+      });
+      return;
     }
     
-    // No saved data - start fresh
+    // New user - start fresh
     await startFresh();
   }
   
@@ -502,19 +568,14 @@ function showDropdowns(config, callback) {
     const existingData = localStorage.getItem('nora_user_data');
     let existingBirthTime = 'unknown';
     
-    console.log('🔍 step3_confirm - existingData:', existingData);
-    
     if (existingData) {
       try {
         const parsed = JSON.parse(existingData);
         existingBirthTime = parsed.birth_time || 'unknown';
-        console.log('🔍 step3_confirm - parsed birth_time:', existingBirthTime);
       } catch (e) {
         console.error('Error parsing existing data:', e);
       }
     }
-    
-    console.log('🔍 step3_confirm - final existingBirthTime:', existingBirthTime);
     
     // If updating birthday and have birth time, confirm both together
     if (existingBirthTime && existingBirthTime !== 'unknown') {
@@ -705,252 +766,258 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
+
+  // ──────────────────────────────────────────────────────────
+  // 🌟 DAILY READING FUNCTIONS
+  // ──────────────────────────────────────────────────────────
   
-async function generateTodayReading(userData) {
-  await showTyping(1000);
-  addMessage("Let me see what's shifting in your chart today...", 'nora');
-  
-  // 저장된 사주 결과에서 element와 pillars 가져오기
-  let element = 'Unknown';
-  let pillars = null;
-  
-  try {
-    const savedResults = localStorage.getItem('nora_saju_results');
-    if (savedResults) {
-      const sajuData = JSON.parse(savedResults);
-      // element 추출
-      if (sajuData.bubbles?.identity) {
-        const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
-        if (elementMatch) element = elementMatch[0];
-      }
-      pillars = sajuData.pillars;
-    }
+  async function generateTodayReading(userData) {
+    await showTyping(1000);
+    addMessage("Let me see what's shifting in your chart today...", 'nora');
     
-    if (!element || element === 'Unknown') {
-      console.log('Element not found in saju results, trying user data...');
-      const savedUserData = localStorage.getItem('nora_user_data');
-      if (savedUserData) {
-        const parsed = JSON.parse(savedUserData);
-        if (parsed.birthday) {
-          // 생년월일로 대략적인 day master element 추정
-          element = estimateElementFromBirthday(parsed.birthday);
-          console.log('Estimated element from birthday:', element);
+    // 저장된 사주 결과에서 element와 pillars 가져오기
+    let element = 'Unknown';
+    let pillars = null;
+    
+    try {
+      const savedResults = localStorage.getItem('nora_saju_results');
+      if (savedResults) {
+        const sajuData = JSON.parse(savedResults);
+        // element 추출
+        if (sajuData.bubbles?.identity) {
+          const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
+          if (elementMatch) element = elementMatch[0];
         }
-      }
-    }
-    
-  } catch(e) {
-    console.error('Error reading saju data:', e);
-  }
-  
-  const todayData = {
-    type: 'daily_reading',
-    date: new Date().toISOString().split('T')[0],
-    name: userData.name,
-    element: element,
-    pillars: pillars
-  };
-  
-  console.log('Sending today data:', todayData);
-  
-  typing.style.display = 'flex';
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(todayData),
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    typing.style.display = 'none';
-    
-    if (response.ok) {
-      const result = await response.json();
-      console.log('Raw result:', result); 
-      
-      let todayReading;
-      if (Array.isArray(result) && result[0]?.text) {
-        const textContent = result[0].text;
-        todayReading = JSON.parse(textContent);
-      } else if (result.today) {
-        todayReading = result;
-      } else if (result.data) {
-        todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-      } else {
-        todayReading = result;
+        pillars = sajuData.pillars;
       }
       
-      await showTyping(800);
-      addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
-      await showTyping(600);
-      addMessage("Want the full deep-dive reading?", 'nora');
-   
-      showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
-        if (choice.includes('full reading')) {
-          showPayPalButton(userData.email || userData.name);
-        } else {
-          // Maybe later → 수다 플로우 시작
-          await showTyping(700);
-          addMessage("That's cool. Want to just chat for a bit?", 'nora');
-    
-          showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
-            if (chatChoice === 'Sure, let\'s chat') {
-              await startCasualChat();
-            } else {
-              addMessage("All good. See you when you're ready! 🌙", 'nora');
-            }
-          });
+      if (!element || element === 'Unknown') {
+        console.log('Element not found in saju results, trying user data...');
+        const savedUserData = localStorage.getItem('nora_user_data');
+        if (savedUserData) {
+          const parsed = JSON.parse(savedUserData);
+          if (parsed.birthday) {
+            // 생년월일로 대략적인 day master element 추정
+            element = estimateElementFromBirthday(parsed.birthday);
+            console.log('Estimated element from birthday:', element);
+          }
         }
+      }
+      
+    } catch(e) {
+      console.error('Error reading saju data:', e);
+    }
+    
+    const todayData = {
+      type: 'daily_reading',
+      date: new Date().toISOString().split('T')[0],
+      name: userData.name,
+      element: element,
+      pillars: pillars
+    };
+    
+    console.log('Sending today data:', todayData);
+    
+    typing.style.display = 'flex';
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(todayData),
+        signal: controller.signal
       });
       
-  } catch(e) {
-    typing.style.display = 'none';
-    if (e.name === 'AbortError') {
-      await showTyping(600);
-      addMessage("Reading is taking longer than expected. Let's try the full version?", 'nora');
-    } else {
-      await showTyping(600);
-      addMessage("Something's blocking the reading today. Try the full version?", 'nora');
-    }
-    
-    showChoices(['Try full reading', 'Start over'], async (choice) => {
-      if (choice === 'Try full reading') {
-        await step4_extras(true);
+      clearTimeout(timeoutId);
+      typing.style.display = 'none';
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Raw result:', result); 
+        
+        let todayReading;
+        if (Array.isArray(result) && result[0]?.text) {
+          const textContent = result[0].text;
+          todayReading = JSON.parse(textContent);
+        } else if (result.today) {
+          todayReading = result;
+        } else if (result.data) {
+          todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+        } else {
+          todayReading = result;
+        }
+        
+        await showTyping(800);
+        addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
+        await showTyping(600);
+        addMessage("Want the full deep-dive reading?", 'nora');
+     
+        showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
+          if (choice.includes('full reading')) {
+            await initiatePayment(userData);
+          } else {
+            // Maybe later → 수다 플로우 시작
+            await showTyping(700);
+            addMessage("That's cool. Want to just chat for a bit?", 'nora');
+      
+            showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
+              if (chatChoice === 'Sure, let\'s chat') {
+                await startCasualChat();
+              } else {
+                addMessage("All good. See you when you're ready! 🌙", 'nora');
+              }
+            });
+          }
+        });
+        
+    } catch(e) {
+      typing.style.display = 'none';
+      if (e.name === 'AbortError') {
+        await showTyping(600);
+        addMessage("Reading is taking longer than expected. Let's try the full version?", 'nora');
       } else {
-        conversationStarted = false;
-        sajuResults = null;
-        localStorage.removeItem('nora_user_data');
-        location.reload();
+        await showTyping(600);
+        addMessage("Something's blocking the reading today. Try the full version?", 'nora');
       }
-    });
-  }
-}
-async function startCasualChat() {
-  await showTyping(800);
-  addMessage("So... anything weighing on you lately?", 'nora');
-  
-  showTextInput('Tell me what\'s up (or just say hi)', async (response) => {
-    if (response && response.trim()) {
-      await respondToCasualChat(response);
-    } else {
-      await showTyping(600);
-      addMessage("That's okay too. Sometimes silence says enough.", 'nora');
-      await showTyping(500);
-      addMessage("I'm here if you need someone to listen. 💜", 'nora');
+      
+      showChoices(['Try full reading', 'Start over'], async (choice) => {
+        if (choice === 'Try full reading') {
+          await initiatePayment(userData);
+        } else {
+          conversationStarted = false;
+          sajuResults = null;
+          localStorage.removeItem('nora_user_data');
+          location.reload();
+        }
+      });
     }
-  }, true);
-}
-
-async function respondToCasualChat(userMessage) {
-  const message = userMessage.toLowerCase();
-  
-  await showTyping(900);
-  
-  if (message.includes('work') || message.includes('job') || message.includes('boss')) {
-    addMessage("Work stuff, huh? That can be heavy. What's the hardest part right now?", 'nora');
-  } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
-    addMessage("Relationship things are never simple. Want to tell me more about what's going on?", 'nora');
-  } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
-    addMessage("That sounds exhausting. When did you last do something just for you?", 'nora');
-  } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
-    addMessage("Family stuff can be complicated. How are you handling it?", 'nora');
-  } else if (message.includes('friend') || message.includes('people')) {
-    addMessage("People can be a lot sometimes. What's that person like?", 'nora');
-  } else {
-    addMessage("I hear you. Sometimes it helps just to say it out loud. How are you feeling about it?", 'nora');
   }
-  
-  // 더 자연스러운 대화 이어가기
-  showTextInput('Keep going if you want...', async (followUp) => {
-    if (followUp && followUp.trim()) {
-      await showTyping(800);
-      addMessage("Thanks for sharing that with me. That takes courage. 💜", 'nora');
+
+  async function startCasualChat() {
+    await showTyping(800);
+    addMessage("So... anything weighing on you lately?", 'nora');
+    
+    showTextInput('Tell me what\'s up (or just say hi)', async (response) => {
+      if (response && response.trim()) {
+        await respondToCasualChat(response);
+      } else {
+        await showTyping(600);
+        addMessage("That's okay too. Sometimes silence says enough.", 'nora');
+        await showTyping(500);
+        addMessage("I'm here if you need someone to listen. 💜", 'nora');
+      }
+    }, true);
+  }
+
+  async function respondToCasualChat(userMessage) {
+    const message = userMessage.toLowerCase();
+    
+    await showTyping(900);
+    
+    if (message.includes('work') || message.includes('job') || message.includes('boss')) {
+      addMessage("Work stuff, huh? That can be heavy. What's the hardest part right now?", 'nora');
+    } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
+      addMessage("Relationship things are never simple. Want to tell me more about what's going on?", 'nora');
+    } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
+      addMessage("That sounds exhausting. When did you last do something just for you?", 'nora');
+    } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
+      addMessage("Family stuff can be complicated. How are you handling it?", 'nora');
+    } else if (message.includes('friend') || message.includes('people')) {
+      addMessage("People can be a lot sometimes. What's that person like?", 'nora');
     } else {
-      await showTyping(600);
-      addMessage("That's alright. You don't have to say more.", 'nora');
+      addMessage("I hear you. Sometimes it helps just to say it out loud. How are you feeling about it?", 'nora');
     }
     
-    await showTyping(600);
-    addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
-  }, true);
-}
-  
-function estimateElementFromBirthday(birthday) {
-  // 간단한 연도 기반 추정 (정확하지는 않지만 fallback용)
-  const year = parseInt(birthday.split('/')[2]);
-  const lastDigit = year % 10;
-  
-  const elements = {
-    0: 'Yang Metal', 1: 'Yin Metal', 
-    2: 'Yang Water', 3: 'Yin Water',
-    4: 'Yang Wood', 5: 'Yin Wood',
-    6: 'Yang Fire', 7: 'Yin Fire',
-    8: 'Yang Earth', 9: 'Yin Earth'
-  };
-  
-  return elements[lastDigit] || 'Unknown';
-}
- function convertToKST(userData) {
-  if (userData.birth_time === 'unknown') {
-    // 시간 모를 때: 날짜만으로 pillars 계산 (00:00 KST 기준)
-    const [month, day, year] = userData.birthday.split('/').map(Number);
-    const pillars = calcPillars(year, month, day, 0, 0);
-    if (pillars) console.log('🀄 Pillars (no time):', pillars);
-    return { ...userData, pillars };
+    // 더 자연스러운 대화 이어가기
+    showTextInput('Keep going if you want...', async (followUp) => {
+      if (followUp && followUp.trim()) {
+        await showTyping(800);
+        addMessage("Thanks for sharing that with me. That takes courage. 💜", 'nora');
+      } else {
+        await showTyping(600);
+        addMessage("That's alright. You don't have to say more.", 'nora');
+      }
+      
+      await showTyping(600);
+      addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
+    }, true);
   }
-  
-  // Parse input
-  const [month, day, year] = userData.birthday.split('/').map(Number);
-  const [hour, minute] = userData.birth_time.split(':').map(Number);
-  
-  // Timezone offsets from UTC (in hours)
-  const offsets = {
-    'America/New_York': -5,    // EST (winter)
-    'America/Chicago': -6,     // CST
-    'America/Denver': -7,      // MST
-    'America/Los_Angeles': -8, // PST (winter)
-    'America/Anchorage': -9,   // AKST
-    'Pacific/Honolulu': -10    // HST
-  };
-  
-  const userOffset = offsets[userData.timezone] || -8;
-  const kstOffset = 9;
-  
-  // Convert to UTC, then to KST
-  const hoursToAdd = kstOffset - userOffset; // e.g., 9 - (-8) = 17
-  
-  // Create date and add hours
-  let kstDate = new Date(year, month - 1, day, hour, minute);
-  kstDate.setHours(kstDate.getHours() + hoursToAdd);
-  
-  const kstMonth = String(kstDate.getMonth() + 1).padStart(2, '0');
-  const kstDay = String(kstDate.getDate()).padStart(2, '0');
-  const kstYear = kstDate.getFullYear();
-  const kstHour = String(kstDate.getHours()).padStart(2, '0');
-  const kstMinute = String(kstDate.getMinutes()).padStart(2, '0');
-  
-  console.log(`🌍 ${userData.birthday} ${userData.birth_time} ${userData.timezone_short} → ${kstMonth}/${kstDay}/${kstYear} ${kstHour}:${kstMinute} KST`);
+    
+  function estimateElementFromBirthday(birthday) {
+    // 간단한 연도 기반 추정 (정확하지는 않지만 fallback용)
+    const year = parseInt(birthday.split('/')[2]);
+    const lastDigit = year % 10;
+    
+    const elements = {
+      0: 'Yang Metal', 1: 'Yin Metal', 
+      2: 'Yang Water', 3: 'Yin Water',
+      4: 'Yang Wood', 5: 'Yin Wood',
+      6: 'Yang Fire', 7: 'Yin Fire',
+      8: 'Yang Earth', 9: 'Yin Earth'
+    };
+    
+    return elements[lastDigit] || 'Unknown';
+  }
 
-  // ── pillars 계산 (KST 기준) ──
-  const pillars = calcPillars(kstDate.getFullYear(), kstDate.getMonth()+1, kstDate.getDate(), kstDate.getHours(), kstDate.getMinutes());
-  if (pillars) console.log('🀄 Pillars:', pillars);
+  function convertToKST(userData) {
+    if (userData.birth_time === 'unknown') {
+      // 시간 모를 때: 날짜만으로 pillars 계산 (00:00 KST 기준)
+      const [month, day, year] = userData.birthday.split('/').map(Number);
+      const pillars = calcPillars(year, month, day, 0, 0);
+      if (pillars) console.log('🀄 Pillars (no time):', pillars);
+      return { ...userData, pillars };
+    }
+    
+    // Parse input
+    const [month, day, year] = userData.birthday.split('/').map(Number);
+    const [hour, minute] = userData.birth_time.split(':').map(Number);
+    
+    // Timezone offsets from UTC (in hours)
+    const offsets = {
+      'America/New_York': -5,    // EST (winter)
+      'America/Chicago': -6,     // CST
+      'America/Denver': -7,      // MST
+      'America/Los_Angeles': -8, // PST (winter)
+      'America/Anchorage': -9,   // AKST
+      'Pacific/Honolulu': -10    // HST
+    };
+    
+    const userOffset = offsets[userData.timezone] || -8;
+    const kstOffset = 9;
+    
+    // Convert to UTC, then to KST
+    const hoursToAdd = kstOffset - userOffset; // e.g., 9 - (-8) = 17
+    
+    // Create date and add hours
+    let kstDate = new Date(year, month - 1, day, hour, minute);
+    kstDate.setHours(kstDate.getHours() + hoursToAdd);
+    
+    const kstMonth = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const kstDay = String(kstDate.getDate()).padStart(2, '0');
+    const kstYear = kstDate.getFullYear();
+    const kstHour = String(kstDate.getHours()).padStart(2, '0');
+    const kstMinute = String(kstDate.getMinutes()).padStart(2, '0');
+    
+    console.log(`🌍 ${userData.birthday} ${userData.birth_time} ${userData.timezone_short} → ${kstMonth}/${kstDay}/${kstYear} ${kstHour}:${kstMinute} KST`);
 
-  return {
-    ...userData,
-    birthday: `${kstMonth}/${kstDay}/${kstYear}`,
-    birth_time: `${kstHour}:${kstMinute}`,
-    timezone: 'Asia/Seoul',
-    timezone_short: 'KST',
-    original_timezone: userData.timezone,
-    original_timezone_short: userData.timezone_short,
-    pillars: pillars
-  };
-}
+    // ── pillars 계산 (KST 기준) ──
+    const pillars = calcPillars(kstDate.getFullYear(), kstDate.getMonth()+1, kstDate.getDate(), kstDate.getHours(), kstDate.getMinutes());
+    if (pillars) console.log('🀄 Pillars:', pillars);
+
+    return {
+      ...userData,
+      birthday: `${kstMonth}/${kstDay}/${kstYear}`,
+      birth_time: `${kstHour}:${kstMinute}`,
+      timezone: 'Asia/Seoul',
+      timezone_short: 'KST',
+      original_timezone: userData.timezone,
+      original_timezone_short: userData.timezone_short,
+      pillars: pillars
+    };
+  }
 
   // PayPal 버튼 표시 함수
   function showPayPalButton(email) {
@@ -958,7 +1025,7 @@ function estimateElementFromBirthday(birthday) {
     if (existingContainer) {
       existingContainer.remove();
     }
-      
+        
     const paypalWrapper = document.createElement('div');
     paypalWrapper.id = 'paypal-button-container';
     paypalWrapper.style.cssText = 'padding: 12px 0;';
@@ -984,6 +1051,7 @@ function estimateElementFromBirthday(birthday) {
         return actions.order.capture().then(async function(details) {
           console.log('🟢 Order captured', details);
           paypalWrapper.remove();
+          
           if (!sajuResults) {
             const saved = localStorage.getItem('nora_saju_results');
             if (saved) sajuResults = JSON.parse(saved);
@@ -1150,102 +1218,16 @@ function estimateElementFromBirthday(birthday) {
     `);
   }
 
+  // ──────────────────────────────────────────────────────────
+  // 🔄 IMPROVED STEP8_SENDWEBHOOK - NO DAILY LIMITS FOR NEW USERS
+  // ──────────────────────────────────────────────────────────
+
   async function step8_sendWebhook() {
     const urlParams = new URLSearchParams(window.location.search);
     const isTestMode = urlParams.get('test') === '1';
     
-    if (!isTestMode) {
-      const lastUsed = localStorage.getItem('nora_last_used');
-      const today = new Date().toDateString();
-      
-      if (lastUsed === today) {
-        await showTyping(700);
-        addMessage("You already got your free reading today.<br>Come back tomorrow, or get the full version for $8.99.", 'nora');
-        
-        await showTyping(500);
-        showChoices(['Get full version', 'Come back tomorrow'], async (choice) => {
-          if (choice === 'Get full version') {
-            gtag('event', 'upsell_clicked', {
-              event_category: 'conversion',
-              event_label: 'get_full_version'
-            });
-            // sajuResults 없으면 백그라운드에서 다시 받기
-            if (!sajuResults) {
-              const saved = localStorage.getItem('nora_saju_results');
-              if (saved) {
-                sajuResults = JSON.parse(saved);
-              } else {
-                // 백그라운드로 무료 리딩 다시 받기
-                await showTyping(800);
-                addMessage("Give me a sec while I pull your chart together... 🔮", 'nora');
-                typing.style.display = 'flex';
-                try {
-                  const kstData = convertToKST(userData);
-                  const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(kstData)
-                  });
-                  typing.style.display = 'none';
-                  if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.data) {
-                      sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-                    } else if (result.reading) {
-                      sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
-                    } else {
-                      sajuResults = result;
-                    }
-                    localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
-                  }
-                } catch(e) {
-                  typing.style.display = 'none';
-                  console.error('Background webhook error:', e);
-                }
-              }
-            }  
-            await showTyping(600);
-            addMessage("Where should I send your full reading? 📩", 'nora');
-
-            const askForEmail = async () => {
-              showTextInput('Your email', async (email) => {
-                if (!email || !email.includes('@')) {
-                  await showTyping(400);
-                  addMessage("Hmm, that doesn't look right — try again?", 'nora');
-                  askForEmail();
-                  return;
-                }
-
-                hideAllInputs();
-                await showTyping(600);
-                addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-                await showTyping(500);
-
-                if (typeof paypal === 'undefined') {
-                  await new Promise((resolve) => {
-                    const checkPaypal = setInterval(() => {
-                      if (typeof paypal !== 'undefined') {
-                        clearInterval(checkPaypal);
-                        resolve();
-                      }
-                    }, 100);
-                  });
-                }
-
-                showPayPalButton(email);
-              }, false);
-            };
-            askForEmail();
-
-          } else {
-            await showTyping(500);
-            addMessage("See you tomorrow! 🌙", 'nora');
-            hideAllInputs();
-          }
-        });
-        return;
-      }
-    }
+    // NEW USERS: No daily limit restrictions at all
+    // They get their free reading immediately
     
     await showTyping(800);
     addMessage('Give me a sec.', 'nora');
@@ -1354,6 +1336,7 @@ function estimateElementFromBirthday(birthday) {
       return;
     }
     
+    // Set last used date only AFTER successful reading
     const today = new Date().toDateString();
     if (!isTestMode) {
       localStorage.setItem('nora_last_used', today);
@@ -1361,7 +1344,6 @@ function estimateElementFromBirthday(birthday) {
     
     await show3Bubbles();
   }
-
 
   async function show3Bubbles() {
     if (!sajuResults || !sajuResults.bubbles) {
@@ -1548,39 +1530,7 @@ async function showUpsell(name) {
           event_category: 'conversion',
           event_label: 'yes_show_me'
         });
-        await showTyping(700);
-        addMessage("Where should I send your full reading? 📩", 'nora');
-        await showTyping(400);
-
-        const askForEmail = async () => {
-          showTextInput('Your email', async (email) => {
-            if (!email || !email.includes('@')) {
-              await showTyping(400);
-              addMessage("Hmm, that doesn't look right — try again?", 'nora');
-              askForEmail();
-              return;
-            }
-
-            hideAllInputs();
-            await showTyping(600);
-            addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-            await showTyping(500);
-
-            if (typeof paypal === 'undefined') {
-              await new Promise((resolve) => {
-                const checkPaypal = setInterval(() => {
-                  if (typeof paypal !== 'undefined') {
-                    clearInterval(checkPaypal);
-                    resolve();
-                  }
-                }, 100);
-              });
-            }
-
-            showPayPalButton(email);
-          }, false);
-        };
-        askForEmail();
+        await initiatePayment(userData);
 
       } else {
         await showTyping(700);
