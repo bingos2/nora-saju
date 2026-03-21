@@ -725,6 +725,20 @@ async function generateTodayReading(userData) {
       }
       pillars = sajuData.pillars;
     }
+    
+    if (!element || element === 'Unknown') {
+      console.log('Element not found in saju results, trying user data...');
+      const savedUserData = localStorage.getItem('nora_user_data');
+      if (savedUserData) {
+        const parsed = JSON.parse(savedUserData);
+        if (parsed.birthday) {
+          // 생년월일로 대략적인 day master element 추정
+          element = estimateElementFromBirthday(parsed.birthday);
+          console.log('Estimated element from birthday:', element);
+        }
+      }
+    }
+    
   } catch(e) {
     console.error('Error reading saju data:', e);
   }
@@ -806,7 +820,21 @@ async function generateTodayReading(userData) {
     });
   }
 }
-
+function estimateElementFromBirthday(birthday) {
+  // 간단한 연도 기반 추정 (정확하지는 않지만 fallback용)
+  const year = parseInt(birthday.split('/')[2]);
+  const lastDigit = year % 10;
+  
+  const elements = {
+    0: 'Yang Metal', 1: 'Yin Metal', 
+    2: 'Yang Water', 3: 'Yin Water',
+    4: 'Yang Wood', 5: 'Yin Wood',
+    6: 'Yang Fire', 7: 'Yin Fire',
+    8: 'Yang Earth', 9: 'Yin Earth'
+  };
+  
+  return elements[lastDigit] || 'Unknown';
+}
  function convertToKST(userData) {
   if (userData.birth_time === 'unknown') {
     // 시간 모를 때: 날짜만으로 pillars 계산 (00:00 KST 기준)
