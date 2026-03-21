@@ -707,18 +707,37 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
-
-async function generateTodayReading(userData) {
-  await showTyping(1000);
-  addMessage("Let me see what's shifting in your chart today...", 'nora');
   
-  const todayData = {
-    type: 'daily_reading',
-    date: new Date().toISOString().split('T')[0],
-    name: userData.name,
-    element: userData.element,
-    pillars: userData.pillars
-  };
+  async function generateTodayReading(userData) {
+    await showTyping(1000);
+    addMessage("Let me see what's shifting in your chart today...", 'nora');
+    
+    // 저장된 사주 결과에서 element와 pillars 가져오기
+    let element = 'Unknown';
+    let pillars = null;
+
+    try {
+      const savedResults = localStorage.getItem('nora_saju_results');
+      if (savedResults) {
+        const sajuData = JSON.parse(savedResults);
+        // element 추출
+        if (sajuData.bubbles?.identity) {
+          const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
+          if (elementMatch) element = elementMatch[0];
+        }
+        pillars = sajuData.pillars;
+      }
+    } catch(e) {
+      console.error('Error reading saju data:', e);
+    }
+    
+    const todayData = {
+      type: 'daily_reading',
+      date: new Date().toISOString().split('T')[0],
+      name: userData.name,
+      element: element,
+      pillars: pillars
+    };
   
   typing.style.display = 'flex';
   
@@ -762,17 +781,15 @@ async function showSubscriptionOffer() {
   await showTyping(800);
   addMessage("I could track your patterns all month — deeper insights, better timing.", 'nora');
   await showTyping(600);
-  addMessage("$12.99/month. Worth it?", 'nora');
+  addMessage("$5.99/month. Worth it?", 'nora');
   
-  showChoices(['Yes, track me', 'Just today ($3.99)', 'Not now'], async (choice) => {
+  showChoices(['Yes, track me', 'Not now'], async (choice) => {
     if (choice === 'Not now') {
       addMessage("All good. See you when you're ready. 🌙", 'nora');
-    } else if (choice === 'Yes, track me') {
-      addMessage("Monthly subscription coming soon! For now, let's do the full reading.", 'nora');
-      await step4_extras(true);
     } else {
-      addMessage("One-time daily reading coming soon! Let's do the full version for now.", 'nora');
-      await step4_extras(true);
+      addMessage("Perfect! You'll get your monthly insights in your inbox within 2 days.", 'nora');
+      // 월간 구독 결제 로직 (PayPal subscription)
+      await setupMonthlySubscription(userData.name || userData.email);
     }
   });
 }
