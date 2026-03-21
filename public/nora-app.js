@@ -83,6 +83,7 @@
 
   // Configuration
   const WEBHOOK_URL = "https://hook.us2.make.com/fjivuprpif5r1asrcclnp1lvelgcc1ms";
+  const CHAT_WEBHOOK_URL = "https://hook.us2.make.com/oa5q85zc125iese4u31tmm88c7o6kz0g";
 
   // Elements
   const coverScreen = document.getElementById('coverScreen');
@@ -343,40 +344,60 @@ function showDropdowns(config, callback) {
   }
 
   // Unified payment flow
-  async function initiatePayment(userData) {
-    await showTyping(600);
-    addMessage("Where should I send your full reading? 📩", 'nora');
-    
-    const askForEmail = async () => {
-      showTextInput('Your email', async (email) => {
-        if (!email || !email.includes('@')) {
-          await showTyping(400);
-          addMessage("Hmm, that doesn't look right — try again?", 'nora');
-          askForEmail();
-          return;
-        }
-        
-        hideAllInputs();
-        await showTyping(600);
-        addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
-        await showTyping(500);
-        
-        if (typeof paypal === 'undefined') {
-          await new Promise((resolve) => {
-            const checkPaypal = setInterval(() => {
-              if (typeof paypal !== 'undefined') {
-                clearInterval(checkPaypal);
-                resolve();
-              }
-            }, 100);
+// Unified payment flow
+async function initiatePayment(userData) {
+  await showTyping(600);
+  addMessage("Where should I send your full reading? 📩", 'nora');
+  
+  const askForEmail = async () => {
+    showTextInput('Your email', async (email) => {
+      if (!email || !email.includes('@')) {
+        await showTyping(400);
+        addMessage("Hmm, that doesn't look right — try again?", 'nora');
+        askForEmail();
+        return;
+      }
+      
+      hideAllInputs();
+      await showTyping(600);
+      addMessage("Perfect. I'll send everything there after you complete payment. 🔮", 'nora');
+      await showTyping(400);
+      addMessage("Changed your mind? That's totally okay too.", 'nora');
+      
+      showChoices(['Complete payment', 'Actually, maybe later'], async (choice) => {
+        if (choice === 'Complete payment') {
+          if (typeof paypal === 'undefined') {
+            await new Promise((resolve) => {
+              const checkPaypal = setInterval(() => {
+                if (typeof paypal !== 'undefined') {
+                  clearInterval(checkPaypal);
+                  resolve();
+                }
+              }, 100);
+            });
+          }
+          showPayPalButton(email);
+        } else {
+          // 뒤로가기 플로우
+          await showTyping(600);
+          addMessage("No worries at all. Want to just chat instead?", 'nora');
+          
+          showChoices(['Sure, let\'s chat', 'Show me today\'s reading', 'I should go'], async (backChoice) => {
+            if (backChoice === 'Sure, let\'s chat') {
+              await startAdvancedChat(userData);
+            } else if (backChoice === 'Show me today\'s reading') {
+              await generateTodayReading(userData);
+            } else {
+              addMessage("All good. See you when you're ready! 🌙", 'nora');
+            }
           });
         }
-        
-        showPayPalButton(email);
-      }, false);
-    };
-    askForEmail();
-  }
+      });
+      
+    }, false);
+  };
+  askForEmail();
+}
 
   // Conversation flow
   async function startConversation() {
@@ -961,11 +982,11 @@ function showDropdowns(config, callback) {
       
             showChoices(['Sure, let\'s chat', 'Actually, I should go'], async (chatChoice) => {
               if (chatChoice === 'Sure, let\'s chat') {
-                await startCasualChat();
+                await startAdvancedChat(userData);  // ← 새 함수 호출
               } else {
                 addMessage("All good. See you when you're ready! 🌙", 'nora');
               }
-            });
+            });      
           }
         });
       }        
@@ -992,96 +1013,7 @@ function showDropdowns(config, callback) {
     }
   }
 
-  async function startCasualChat() {
-    await showTyping(800);
-    addMessage("So... anything weighing on you lately?", 'nora');
-    
-    showTextInput('Tell me what\'s up (or just say hi)', async (response) => {
-      if (response && response.trim()) {
-        await respondToCasualChat(response);
-      } else {
-        await showTyping(600);
-        addMessage("That's okay too. Sometimes silence says enough.", 'nora');
-        await showTyping(500);
-        addMessage("I'm here if you need someone to listen. 💜", 'nora');
-      }
-    }, true);
-  }
-
-  async function respondToCasualChat(userMessage, isFirstResponse = true) {
-  let previousInput = '';
-  const message = userMessage.toLowerCase();
-
-  await showTyping(900);
-
-  if (isFirstResponse) {
-    // 첫 번째 응답 - 공감하고 구체적 질문
-    if (message.includes('work') || message.includes('job') || message.includes('boss')) {
-      addMessage("Work stuff can be really draining. Is it the people, the workload, or something else that's getting to you?", 'nora');
-    } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
-      addMessage("Relationship things are never simple. Is this someone you've been with for a while, or something new?", 'nora');
-    } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
-      addMessage("That sounds exhausting. What's taking up most of your mental energy right now?", 'nora');
-    } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
-      addMessage("Family dynamics can be so complex. Is this an ongoing thing or something that just came up?", 'nora');
-    } else if (message.includes('friend') || message.includes('people')) {
-      addMessage("People can be a lot sometimes. What's this person doing that's bothering you?", 'nora');
-    } else if (message.includes('money') || message.includes('broke') || message.includes('expensive')) {
-      addMessage("Money stress hits different. Is it a sudden thing or something that's been building up?", 'nora');
-    } else {
-      addMessage("That sounds like it's really weighing on you. How long has this been sitting in your mind?", 'nora');
-    }
-
-    // 두 번째 응답을 위한 입력
-    showTextInput('Tell me more...', async (followUp) => {
-      if (followUp && followUp.trim()) {
-        previousInput = followUp; // 저장
-        await respondToCasualChat(followUp, false);
-      } else {  // ✅ } 하나만!
-        await showTyping(600);
-        addMessage("Sometimes it's hard to put into words. That's okay too.", 'nora');
-        await endChatNaturally();
-      }
-    }, true);
-
-  } else {
-    // 두 번째 응답 - 더 깊이 들어가고 해결책 제시
-    await showTyping(800);
-
-    if (message.includes('better') || message.includes('good') || message.includes('fine')) {
-      addMessage("I'm glad to hear that. What helped shift things for you?", 'nora');
-    } else if (message.includes('worse') || message.includes('terrible') || message.includes('awful')) {
-      addMessage("That sounds really tough. What would feel like even just a small step forward right now?", 'nora');
-    } else {
-      addMessage("I can hear how much this matters to you. If you could change one thing about this situation, what would it be?", 'nora');
-    }
-
-    // 마지막 입력
-    showTextInput('What would help?', async (finalThought) => {
-      await showTyping(700);
-      if (finalThought && finalThought.trim()) {
-        addMessage("Thank you for trusting me with this. You're processing things really thoughtfully. 💜", 'nora');
-        
-        // 대화 기억하기
-        saveConversationMemory(userMessage, previousInput, finalThought);
-      } else {
-        addMessage("Sometimes just being heard is enough. Thank you for sharing with me. 💜", 'nora');
-        
-        // 첫 번째 메시지만 기억
-        saveConversationMemory(userMessage, previousInput, '');  // ✅ followUp → previousInput
-      }
-      
-      await showTyping(600);
-      addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
-    }, true);
-  }
-}
-
-async function endChatNaturally() {
-  await showTyping(600);
-  addMessage("I'm here if you need someone to listen. Take care of yourself. 💜", 'nora');
-}
-
+  
   function saveConversationMemory(topic, details, resolution) {
   const memory = {
     date: new Date().toDateString(),
@@ -1096,16 +1028,16 @@ async function endChatNaturally() {
   console.log('💭 Saved conversation memory:', memory);
 }
 
-function identifyCategory(topic) {
-  const message = topic.toLowerCase();
-  if (message.includes('work') || message.includes('job')) return 'work';
-  if (message.includes('relationship') || message.includes('love')) return 'relationship';
-  if (message.includes('family') || message.includes('parents')) return 'family';
-  if (message.includes('money') || message.includes('broke')) return 'money';
-  if (message.includes('friend')) return 'friends';
-  if (message.includes('stress') || message.includes('tired')) return 'stress';
-  return 'general';
-}
+  function identifyCategory(topic) {
+    const message = topic.toLowerCase();
+    if (message.includes('work') || message.includes('job')) return 'work';
+    if (message.includes('relationship') || message.includes('love')) return 'relationship';
+    if (message.includes('family') || message.includes('parents')) return 'family';
+    if (message.includes('money') || message.includes('broke')) return 'money';
+    if (message.includes('friend')) return 'friends';
+    if (message.includes('stress') || message.includes('tired')) return 'stress';
+    return 'general';
+  }
 
 function getConversationMemory() {
   const saved = localStorage.getItem('nora_conversation_memory');
@@ -1115,99 +1047,6 @@ function getConversationMemory() {
 function isRecentMemory(memory) {
   const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
   return memory.timestamp > weekAgo;
-}
-
-async function checkPreviousConversation() {
-  const memory = getConversationMemory();
-  if (memory && isRecentMemory(memory)) {
-    await showTyping(800);
-    
-    const responses = {
-      'work': `Hey! Last time you mentioned work was stressing you out. How's that going now?`,
-      'relationship': `I was thinking about you. How did that relationship situation work out?`,
-      'family': `How are things with family? Last time it sounded pretty heavy.`,
-      'money': `Hey, how's the money situation? Still weighing on you?`,
-      'friends': `How's that friend situation you mentioned? Any better?`,
-      'stress': `You were feeling pretty overwhelmed last time we talked. How are you holding up?`,
-      'general': `You were dealing with some tough stuff last time. How are things now?`
-    };
-    
-    addMessage(responses[memory.category] || responses.general, 'nora');
-    
-    showChoices(['Much better now', 'Still working on it', 'Let\'s talk about today instead'], async (choice) => {
-      if (choice === 'Let\'s talk about today instead') {
-        // 메모리 지우고 일반 플로우로
-        localStorage.removeItem('nora_conversation_memory');
-        await showTyping(800);
-        addMessage("Want to see what today has in store for you?", 'nora');
-        
-        showChoices(['Show me today', 'Get full reading'], async (choice) => {
-          if (choice === 'Show me today') {
-            await generateTodayReading(userData);
-          } else {
-            await initiatePayment(userData);
-          }
-        });
-      } else {
-        await continueFromMemory(choice, memory);
-      }
-    });
-    
-    return true; // 기억이 있어서 처리함
-  }
-  return false; // 기억 없음
-}
-
-async function continueFromMemory(choice, memory) {
-  if (choice === 'Much better now') {
-    await showTyping(700);
-    addMessage("That's amazing to hear! What helped turn things around?", 'nora');
-    
-    showTextInput('What changed?', async (response) => {
-      await showTyping(600);
-      addMessage("That's really great. It sounds like you handled it well. 💜", 'nora');
-      
-      // 긍정적 결과로 메모리 업데이트
-      memory.resolution = `Resolved positively: ${response}`;
-      localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
-      
-      await showTyping(700);
-      addMessage("Want to see what today has in store for you?", 'nora');
-      
-      showChoices(['Show me today', 'Get full reading'], async (choice) => {
-        if (choice === 'Show me today') {
-          await generateTodayReading(userData);
-        } else {
-          await initiatePayment(userData);
-        }
-      });
-    }, true);
-    
-  } else {
-    // Still working on it
-    await showTyping(700);
-    addMessage("These things take time. Want to talk through where you're at now?", 'nora');
-    
-    showChoices(['Yeah, let\'s talk', 'Maybe later'], async (talkChoice) => {
-      if (talkChoice === 'Yeah, let\'s talk') {
-        await startCasualChat();
-      } else {
-        await showTyping(600);
-        addMessage("That's okay. I'm here when you're ready.", 'nora');
-        
-        await showTyping(700);
-        addMessage("Want to see what today has in store for you?", 'nora');
-        
-        showChoices(['Show me today', 'Get full reading'], async (choice) => {
-          if (choice === 'Show me today') {
-            await generateTodayReading(userData);
-          } else {
-            await initiatePayment(userData);
-          }
-        });
-      }
-    });
-  }
 }
     
   function estimateElementFromBirthday(birthday) {
@@ -1671,6 +1510,35 @@ async function continueFromMemory(choice, memory) {
     await showUpsell(userData.name);
   }
 
+  async function checkPreviousConversation() {
+  const memory = getConversationMemory();
+  if (memory && isRecentMemory(memory)) {
+    await showTyping(800);
+    addMessage(`Hey! You mentioned ${memory.category} stuff last time. How's that going?`, 'nora');
+    
+    showChoices(['Much better', 'Still tough', 'Let\'s talk about today'], async (choice) => {
+      if (choice === 'Let\'s talk about today') {
+        localStorage.removeItem('nora_conversation_memory');
+        await showTyping(800);
+        addMessage("Want to see what today has in store for you?", 'nora');
+        
+        showChoices(['Show me today', 'Get full reading'], async (choice) => {
+          if (choice === 'Show me today') {
+            await generateTodayReading(userData);
+          } else {
+            await initiatePayment(userData);
+          }
+        });
+      } else {
+        await startAdvancedChat(userData);  // GPT가 알아서 처리
+      }
+    });
+    
+    return true;
+  }
+  return false;
+}
+
   async function showCategoryReading(category) {
     await showTyping(700);
     
@@ -1778,6 +1646,97 @@ async function continueFromMemory(choice, memory) {
     scrollToBottom();
   }
 
+  async function startAdvancedChat(userData) {
+  await showTyping(800);
+  addMessage("So... what's really on your mind lately?", 'nora');
+  
+  showTextInput('Tell me anything...', async (userInput) => {
+    if (userInput && userInput.trim()) {
+      await handleAdvancedChat(userInput, userData, []);
+    } else {
+      await showTyping(600);
+      addMessage("That's okay. Sometimes silence says enough too. 💜", 'nora');
+    }
+  }, true);
+}
+
+async function handleAdvancedChat(userInput, userData, conversationHistory) {
+  typing.style.display = 'flex';
+  
+  try {
+    // 대화 히스토리와 함께 GPT에게 전송
+    const chatData = {
+      type: 'advanced_chat',
+      user_input: userInput,
+      user_name: userData.name,
+      conversation_history: conversationHistory,
+      nora_persona: {
+        voice: "Gen Z, empathetic, slightly mystical, direct but caring",
+        background: "Korean saju reader who genuinely cares about people",
+        style: "Uses 'honestly', 'like', asks follow-up questions, remembers details"
+      }
+    };
+    
+    const response = await fetch(CHAT_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(chatData)
+    });
+    
+    typing.style.display = 'none';
+    
+    if (response.ok) {
+      const result = await response.json();
+      const noraResponse = result.response || "I hear you. That sounds like a lot to process.";
+      
+      await showTyping(800);
+      addMessage(noraResponse, 'nora');
+      
+      // 대화 히스토리 업데이트
+      const newHistory = [...conversationHistory, 
+        { role: 'user', content: userInput },
+        { role: 'nora', content: noraResponse }
+      ];
+      
+      // 대화 계속할지 물어보기
+      showChoices(['Keep talking', 'That helps, thanks'], async (choice) => {
+        if (choice === 'Keep talking') {
+          showTextInput('What else?', async (nextInput) => {
+            if (nextInput && nextInput.trim()) {
+              await handleAdvancedChat(nextInput, userData, newHistory);
+            } else {
+              await showTyping(600);
+              addMessage("I'm here whenever you need someone to listen. 💜", 'nora');
+            }
+          }, true);
+        } else {
+          await showTyping(600);
+          addMessage("Glad I could help. Take care of yourself. 💜", 'nora');
+          
+          // 대화 기억으로 저장
+          saveConversationMemory(
+            conversationHistory[0]?.content || userInput,
+            newHistory.map(h => h.content).join(' '),
+            'Had a good chat'
+          );
+        }
+      });
+      
+    } else {
+      throw new Error('Chat API failed');
+    }
+    
+  } catch(e) {
+    typing.style.display = 'none';
+    console.error('Advanced chat error:', e);
+    
+    await showTyping(600);
+    addMessage("Sorry, I'm having trouble processing that right now. But I'm still here to listen.", 'nora');
+    
+    await startAdvancedChat(userData);
+  }
+}
+  
 async function showUpsell(name) {
     await showTyping(900);
     addMessage("Over 2,400 people have read theirs this month.", 'nora');
@@ -1841,7 +1800,7 @@ async function showUpsell(name) {
       }
     });
   }
-
+  
   // Handle return after successful payment
   function checkPaidReturn() {
   const params = new URLSearchParams(window.location.search);
