@@ -707,20 +707,6 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
-
-async function afterDailyReading() {
-  await showTyping(600);
-  addMessage("That's your vibe for today. Want the full deep-dive reading?", 'nora');
-  
-  showChoices(['Get full reading ($8.99)', 'Maybe later'], async (choice) => {
-    if (choice.includes('full reading')) {
-      // 기존 결제 플로우
-      showPayPalButton(userData.email);
-    } else {
-      addMessage("All good. See you when you're ready! 🌙", 'nora');
-    }
-  });
-}
   
 async function generateTodayReading(userData) {
   await showTyping(1000);
