@@ -415,6 +415,11 @@ function showDropdowns(config, callback) {
           userData.birth_time = savedData.birth_time || 'unknown';
           userData.birthday_confirmed = true;
 
+          const hasMemory = await checkPreviousConversation();
+          if (hasMemory) {
+            return; // 메모리 대화가 진행되므로 여기서 종료
+          }
+
           await showTyping(700);
           addMessage(`Welcome back, ${savedData.name}. 🔮`, 'nora');
           
@@ -1005,50 +1010,99 @@ function showDropdowns(config, callback) {
 
   async function respondToCasualChat(userMessage, isFirstResponse = true) {
   const message = userMessage.toLowerCase();
-    await showTyping(900);
   
-    if (isFirstResponse) {
-    // 첫 번째 응답 - 공감하고 질문
-    if (message.includes('work') || message.includes('job')) {
-      addMessage("Work stuff can be draining. What's the most frustrating part right now?", 'nora');
-    } else if (message.includes('relationship')) {
-      addMessage("Relationships are complex. Is this someone you've been with for a while?", 'nora');
+  await showTyping(900);
+  
+  if (isFirstResponse) {
+    // 첫 번째 응답 - 공감하고 구체적 질문
+    if (message.includes('work') || message.includes('job') || message.includes('boss')) {
+      addMessage("Work stuff can be really draining. Is it the people, the workload, or something else that's getting to you?", 'nora');
+    } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
+      addMessage("Relationship things are never simple. Is this someone you've been with for a while, or something new?", 'nora');
+    } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
+      addMessage("That sounds exhausting. What's taking up most of your mental energy right now?", 'nora');
+    } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
+      addMessage("Family dynamics can be so complex. Is this an ongoing thing or something that just came up?", 'nora');
+    } else if (message.includes('friend') || message.includes('people')) {
+      addMessage("People can be a lot sometimes. What's this person doing that's bothering you?", 'nora');
+    } else if (message.includes('money') || message.includes('broke') || message.includes('expensive')) {
+      addMessage("Money stress hits different. Is it a sudden thing or something that's been building up?", 'nora');
     } else {
-      addMessage("That sounds like a lot to carry. How long has this been on your mind?", 'nora');
+      addMessage("That sounds like it's really weighing on you. How long has this been sitting in your mind?", 'nora');
     }
     
-    // 두 번째 입력 받기
+    // 두 번째 응답을 위한 입력
     showTextInput('Tell me more...', async (followUp) => {
-      await respondToCasualChat(followUp, false); // 두 번째 라운드
+      if (followUp && followUp.trim()) {
+        await respondToCasualChat(followUp, false); // 두 번째 라운드
+      } else {
+        await showTyping(600);
+        addMessage("Sometimes it's hard to put into words. That's okay too.", 'nora');
+        await endChatNaturally();
+      }
     }, true);
     
   } else {
-    // 두 번째 응답 - 더 깊이 들어가기
-    if (followUp && followUp.trim()) {
-      await showTyping(800);
-      addMessage("I can hear how much this matters to you. What would feel like progress to you right now?", 'nora');
-      
-      // 세 번째 입력
-      showTextInput('What would help?', async (finalThought) => {
-        await showTyping(700);
-        addMessage("Thank you for trusting me with this. You're stronger than you know. 💜", 'nora');
+    // 두 번째 응답 - 더 깊이 들어가고 해결책 제시
+    await showTyping(800);
+    
+    if (message.includes('better') || message.includes('good') || message.includes('fine')) {
+      addMessage("I'm glad to hear that. What helped shift things for you?", 'nora');
+    } else if (message.includes('worse') || message.includes('terrible') || message.includes('awful')) {
+      addMessage("That sounds really tough. What would feel like even just a small step forward right now?", 'nora');
+    } else {
+      addMessage("I can hear how much this matters to you. If you could change one thing about this situation, what would it be?", 'nora');
+    }
+    
+    // 마지막 입력
+    showTextInput('What would help?', async (finalThought) => {
+      await showTyping(700);
+      if (finalThought && finalThought.trim()) {
+        addMessage("Thank you for trusting me with this. You're processing things really thoughtfully. 💜", 'nora');
         
         // 대화 기억하기
         saveConversationMemory(userMessage, followUp, finalThought);
-      }, true);
-    }
+      } else {
+        addMessage("Sometimes just being heard is enough. Thank you for sharing with me. 💜", 'nora');
+        
+        // 첫 번째 메시지만 기억
+        saveConversationMemory(userMessage, followUp, '');
+      }
+      
+      await showTyping(600);
+      addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
+    }, true);
   }
 }
+
+async function endChatNaturally() {
+  await showTyping(600);
+  addMessage("I'm here if you need someone to listen. Take care of yourself. 💜", 'nora');
+}
+
   function saveConversationMemory(topic, details, resolution) {
   const memory = {
     date: new Date().toDateString(),
     topic: topic,
-    details: details,
-    resolution: resolution,
-    timestamp: Date.now()
+    details: details || '',
+    resolution: resolution || '',
+    timestamp: Date.now(),
+    category: identifyCategory(topic)
   };
   
   localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
+  console.log('💭 Saved conversation memory:', memory);
+}
+
+function identifyCategory(topic) {
+  const message = topic.toLowerCase();
+  if (message.includes('work') || message.includes('job')) return 'work';
+  if (message.includes('relationship') || message.includes('love')) return 'relationship';
+  if (message.includes('family') || message.includes('parents')) return 'family';
+  if (message.includes('money') || message.includes('broke')) return 'money';
+  if (message.includes('friend')) return 'friends';
+  if (message.includes('stress') || message.includes('tired')) return 'stress';
+  return 'general';
 }
 
 function getConversationMemory() {
@@ -1056,37 +1110,102 @@ function getConversationMemory() {
   return saved ? JSON.parse(saved) : null;
 }
 
-// startConversation에서 기억 체크
+function isRecentMemory(memory) {
+  const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  return memory.timestamp > weekAgo;
+}
+
 async function checkPreviousConversation() {
   const memory = getConversationMemory();
   if (memory && isRecentMemory(memory)) {
     await showTyping(800);
     
-    if (memory.topic.includes('work')) {
-      addMessage(`Hey! Last time you mentioned work stuff was tough. How's that going now?`, 'nora');
-    } else if (memory.topic.includes('relationship')) {
-      addMessage(`I was thinking about you. How did that relationship situation work out?`, 'nora');
-    } else {
-      addMessage(`You were dealing with some heavy stuff last time we talked. Feeling any better?`, 'nora');
-    }
+    const responses = {
+      'work': `Hey! Last time you mentioned work was stressing you out. How's that going now?`,
+      'relationship': `I was thinking about you. How did that relationship situation work out?`,
+      'family': `How are things with family? Last time it sounded pretty heavy.`,
+      'money': `Hey, how's the money situation? Still weighing on you?`,
+      'friends': `How's that friend situation you mentioned? Any better?`,
+      'stress': `You were feeling pretty overwhelmed last time we talked. How are you holding up?`,
+      'general': `You were dealing with some tough stuff last time. How are things now?`
+    };
+    
+    addMessage(responses[memory.category] || responses.general, 'nora');
     
     showChoices(['Much better now', 'Still working on it', 'Let\'s talk about today instead'], async (choice) => {
       if (choice === 'Let\'s talk about today instead') {
-        // 일반 플로우로
+        // 메모리 지우고 일반 플로우로
+        localStorage.removeItem('nora_conversation_memory');
+        await showTyping(800);
+        addMessage("Want to see what today has in store for you?", 'nora');
+        
+        showChoices(['Show me today', 'Get full reading'], async (choice) => {
+          if (choice === 'Show me today') {
+            await generateTodayReading(userData);
+          } else {
+            await initiatePayment(userData);
+          }
+        });
       } else {
-        // 대화 이어가기
         await continueFromMemory(choice, memory);
       }
     });
     
-    return true; // 기억 있음
+    return true; // 기억이 있어서 처리함
   }
   return false; // 기억 없음
 }
 
-function isRecentMemory(memory) {
-  const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  return memory.timestamp > weekAgo;
+async function continueFromMemory(choice, memory) {
+  if (choice === 'Much better now') {
+    await showTyping(700);
+    addMessage("That's amazing to hear! What helped turn things around?", 'nora');
+    
+    showTextInput('What changed?', async (response) => {
+      await showTyping(600);
+      addMessage("That's really great. It sounds like you handled it well. 💜", 'nora');
+      
+      // 긍정적 결과로 메모리 업데이트
+      memory.resolution = `Resolved positively: ${response}`;
+      localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
+      
+      await showTyping(700);
+      addMessage("Want to see what today has in store for you?", 'nora');
+      
+      showChoices(['Show me today', 'Get full reading'], async (choice) => {
+        if (choice === 'Show me today') {
+          await generateTodayReading(userData);
+        } else {
+          await initiatePayment(userData);
+        }
+      });
+    }, true);
+    
+  } else {
+    // Still working on it
+    await showTyping(700);
+    addMessage("These things take time. Want to talk through where you're at now?", 'nora');
+    
+    showChoices(['Yeah, let\'s talk', 'Maybe later'], async (talkChoice) => {
+      if (talkChoice === 'Yeah, let\'s talk') {
+        await startCasualChat();
+      } else {
+        await showTyping(600);
+        addMessage("That's okay. I'm here when you're ready.", 'nora');
+        
+        await showTyping(700);
+        addMessage("Want to see what today has in store for you?", 'nora');
+        
+        showChoices(['Show me today', 'Get full reading'], async (choice) => {
+          if (choice === 'Show me today') {
+            await generateTodayReading(userData);
+          } else {
+            await initiatePayment(userData);
+          }
+        });
+      }
+    });
+  }
 }
     
   function estimateElementFromBirthday(birthday) {
