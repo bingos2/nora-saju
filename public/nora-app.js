@@ -452,7 +452,52 @@ function showDropdowns(config, callback) {
                 birth_time: savedBirthTime || 'unknown', // Keep birth time
                 note: ''
               };
-              await step2_birthday();
+              await showTyping(600);
+              addMessage("What's your new birthday?", 'nora');
+              // 기존 드롭다운 코드 사용
+              const months = [];
+              for (let i = 1; i <= 12; i++) {
+                months.push({ value: String(i).padStart(2, '0'), label: String(i).padStart(2, '0') });
+              }
+              const days = [];
+              for (let i = 1; i <= 31; i++) {
+                days.push({ value: String(i).padStart(2, '0'), label: String(i).padStart(2, '0') });
+              }
+              const years = [];
+              const currentYear = new Date().getFullYear();
+              for (let i = currentYear; i >= 1900; i--) {
+                years.push({ value: String(i), label: String(i) });
+              }
+              showDropdowns([
+                [
+                  { id: 'month', options: months },
+                  { id: 'day', options: days },
+                  { id: 'year', options: years }
+                ]
+              ], async (values) => {
+                const newBirthday = `${values.month}/${values.day}/${values.year}`;
+
+                // localStorage 업데이트
+                const savedData = JSON.parse(localStorage.getItem('nora_user_data'));
+                savedData.birthday = newBirthday;
+                localStorage.setItem('nora_user_data', JSON.stringify(savedData));
+                // userData도 업데이트
+                userData.birthday = newBirthday;
+                userData.name = savedData.name;
+                userData.timezone = savedData.timezone;
+                userData.timezone_short = savedData.timezone_short;
+                userData.birth_time = savedData.birth_time;
+                userData.birthday_confirmed = true;
+                await showTyping(700);
+                addMessage("Updated! Want to see what today has in store for you?", 'nora');
+                showChoices(['Show me today', 'Get full reading'], async (choice) => {
+                  if (choice === 'Show me today') {
+                    await generateTodayReading(userData);
+                  } else {
+                    await initiatePayment(userData);
+                  }
+                });
+              });              
             } else {
               // Go to birth time input
               userData.name = savedData.name;
@@ -460,7 +505,53 @@ function showDropdowns(config, callback) {
               userData.timezone = savedData.timezone;
               userData.timezone_short = savedData.timezone_short;
               userData.birthday_confirmed = true;
-              await step5_birthTimeKnown(true); // Skip explanation
+              // Birth time 업데이트
+              await showTyping(600);
+              addMessage("What's your birth time?", 'nora');
+              const hours = [];
+              for (let i = 1; i <= 12; i++) {
+                hours.push({ value: String(i), label: String(i) });
+              }
+              const minutes = [];
+              for (let i = 0; i < 60; i++) {
+                minutes.push({ value: String(i).padStart(2, '0'), label: String(i).padStart(2, '0') });
+              }
+              const ampm = [
+                { value: 'AM', label: 'AM' },
+                { value: 'PM', label: 'PM' }
+              ];
+              showDropdowns([
+                [
+                  { id: 'hour', options: hours },
+                  { id: 'minute', options: minutes },
+                  { id: 'ampm', options: ampm }
+                ]
+              ], async (values) => {
+                let hour = parseInt(values.hour);
+                if (values.ampm === 'PM' && hour !== 12) hour += 12;
+                if (values.ampm === 'AM' && hour === 12) hour = 0;
+                const newBirthTime = `${String(hour).padStart(2, '0')}:${values.minute}`;
+                // localStorage 업데이트
+                const savedData = JSON.parse(localStorage.getItem('nora_user_data'));
+                savedData.birth_time = newBirthTime;
+                localStorage.setItem('nora_user_data', JSON.stringify(savedData));
+                // userData도 업데이트
+                userData.birth_time = newBirthTime;
+                userData.name = savedData.name;
+                userData.birthday = savedData.birthday;
+                userData.timezone = savedData.timezone;
+                userData.timezone_short = savedData.timezone_short;
+                userData.birthday_confirmed = true;
+                await showTyping(700);
+                addMessage("Updated! Want to see what today has in store for you?", 'nora');
+                showChoices(['Show me today', 'Get full reading'], async (choice) => {
+                  if (choice === 'Show me today') {
+                    await generateTodayReading(userData);
+                  } else {
+                    await initiatePayment(userData);
+                  }
+                });
+              });
             }
           });
         }
@@ -912,39 +1003,91 @@ function showDropdowns(config, callback) {
     }, true);
   }
 
-  async function respondToCasualChat(userMessage) {
-    const message = userMessage.toLowerCase();
-    
+  async function respondToCasualChat(userMessage, isFirstResponse = true) {
+  const message = userMessage.toLowerCase();
     await showTyping(900);
-    
-    if (message.includes('work') || message.includes('job') || message.includes('boss')) {
-      addMessage("Work stuff, huh? That can be heavy. What's the hardest part right now?", 'nora');
-    } else if (message.includes('relationship') || message.includes('love') || message.includes('dating')) {
-      addMessage("Relationship things are never simple. Want to tell me more about what's going on?", 'nora');
-    } else if (message.includes('tired') || message.includes('stressed') || message.includes('overwhelmed')) {
-      addMessage("That sounds exhausting. When did you last do something just for you?", 'nora');
-    } else if (message.includes('family') || message.includes('parents') || message.includes('mom') || message.includes('dad')) {
-      addMessage("Family stuff can be complicated. How are you handling it?", 'nora');
-    } else if (message.includes('friend') || message.includes('people')) {
-      addMessage("People can be a lot sometimes. What's that person like?", 'nora');
+  
+    if (isFirstResponse) {
+    // 첫 번째 응답 - 공감하고 질문
+    if (message.includes('work') || message.includes('job')) {
+      addMessage("Work stuff can be draining. What's the most frustrating part right now?", 'nora');
+    } else if (message.includes('relationship')) {
+      addMessage("Relationships are complex. Is this someone you've been with for a while?", 'nora');
     } else {
-      addMessage("I hear you. Sometimes it helps just to say it out loud. How are you feeling about it?", 'nora');
+      addMessage("That sounds like a lot to carry. How long has this been on your mind?", 'nora');
     }
     
-    // 더 자연스러운 대화 이어가기
-    showTextInput('Keep going if you want...', async (followUp) => {
-      if (followUp && followUp.trim()) {
-        await showTyping(800);
-        addMessage("Thanks for sharing that with me. That takes courage. 💜", 'nora');
-      } else {
-        await showTyping(600);
-        addMessage("That's alright. You don't have to say more.", 'nora');
-      }
-      
-      await showTyping(600);
-      addMessage("Feel free to come back anytime you need someone to listen.", 'nora');
+    // 두 번째 입력 받기
+    showTextInput('Tell me more...', async (followUp) => {
+      await respondToCasualChat(followUp, false); // 두 번째 라운드
     }, true);
+    
+  } else {
+    // 두 번째 응답 - 더 깊이 들어가기
+    if (followUp && followUp.trim()) {
+      await showTyping(800);
+      addMessage("I can hear how much this matters to you. What would feel like progress to you right now?", 'nora');
+      
+      // 세 번째 입력
+      showTextInput('What would help?', async (finalThought) => {
+        await showTyping(700);
+        addMessage("Thank you for trusting me with this. You're stronger than you know. 💜", 'nora');
+        
+        // 대화 기억하기
+        saveConversationMemory(userMessage, followUp, finalThought);
+      }, true);
+    }
   }
+}
+  function saveConversationMemory(topic, details, resolution) {
+  const memory = {
+    date: new Date().toDateString(),
+    topic: topic,
+    details: details,
+    resolution: resolution,
+    timestamp: Date.now()
+  };
+  
+  localStorage.setItem('nora_conversation_memory', JSON.stringify(memory));
+}
+
+function getConversationMemory() {
+  const saved = localStorage.getItem('nora_conversation_memory');
+  return saved ? JSON.parse(saved) : null;
+}
+
+// startConversation에서 기억 체크
+async function checkPreviousConversation() {
+  const memory = getConversationMemory();
+  if (memory && isRecentMemory(memory)) {
+    await showTyping(800);
+    
+    if (memory.topic.includes('work')) {
+      addMessage(`Hey! Last time you mentioned work stuff was tough. How's that going now?`, 'nora');
+    } else if (memory.topic.includes('relationship')) {
+      addMessage(`I was thinking about you. How did that relationship situation work out?`, 'nora');
+    } else {
+      addMessage(`You were dealing with some heavy stuff last time we talked. Feeling any better?`, 'nora');
+    }
+    
+    showChoices(['Much better now', 'Still working on it', 'Let\'s talk about today instead'], async (choice) => {
+      if (choice === 'Let\'s talk about today instead') {
+        // 일반 플로우로
+      } else {
+        // 대화 이어가기
+        await continueFromMemory(choice, memory);
+      }
+    });
+    
+    return true; // 기억 있음
+  }
+  return false; // 기억 없음
+}
+
+function isRecentMemory(memory) {
+  const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  return memory.timestamp > weekAgo;
+}
     
   function estimateElementFromBirthday(birthday) {
     // 간단한 연도 기반 추정 (정확하지는 않지만 fallback용)
