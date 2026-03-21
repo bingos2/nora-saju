@@ -2025,4 +2025,4 @@ async function showUpsell(name) {
 }
   console.log('✅ All event listeners attached');
   checkPaidReturn();
-})();
+}();
