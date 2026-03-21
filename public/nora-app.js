@@ -350,7 +350,20 @@ function showDropdowns(config, callback) {
               userData.timezone_short = parsed.timezone_short;
               userData.birth_time = parsed.birth_time || 'unknown';
               userData.birthday_confirmed = true;
-              await step4_extras(true); // Returning user
+
+              // 새로운 returning user 플로우
+              await showTyping(700);
+              addMessage(`Welcome back, ${parsed.name}. 🔮`, 'nora');
+              await showTyping(800);
+              addMessage("Want to see what today has in store for you?", 'nora');
+              
+              showChoices(['Show me today', 'Get full monthly reading'], async (choice) => {
+                if (choice === 'Show me today') {
+                  await generateTodayReading(userData);
+                } else {
+                  await showSubscriptionOffer();
+                }
+              });
             } else {
               // Update info - ask what to update
               await showTyping(600);
@@ -694,6 +707,51 @@ function showDropdowns(config, callback) {
       await step8_sendWebhook();
     }, true);
   }
+
+async function generateTodayReading(userData) {
+  await showTyping(1000);
+  addMessage("Let me see what's shifting in your chart today...", 'nora');
+  
+  const todayData = {
+    type: 'daily_reading',
+    date: new Date().toISOString().split('T')[0],
+    element: userData.element,
+    pillars: userData.pillars
+  };
+  
+  typing.style.display = 'flex';
+  
+  try {
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(todayData)
+    });
+  
+    typing.style.display = 'none';
+    
+    if (response.ok) {
+      const result = await response.json();
+      const todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+      
+      await showTyping(800);
+      addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
+      await showTyping(600);
+      await showSubscriptionOffer();
+    }
+  } catch(e) {  // catch가 try 안에 들어가야 함
+    typing.style.display = 'none';
+    await showTyping(600);
+    addMessage("Something's blocking the reading today. Try the full version?", 'nora');
+    await showSubscriptionOffer();
+  }
+}  // 여기서 함수 끝
+
+async function showSubscriptionOffer() {
+  await showTyping(800);
+  addMessage("Let me track your patterns all month for deeper insights.", 'nora');
+  // 구독 로직 추가 필요
+}
 
  function convertToKST(userData) {
   if (userData.birth_time === 'unknown') {
