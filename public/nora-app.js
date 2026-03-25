@@ -916,7 +916,7 @@ async function initiatePayment(userData) {
   async function generateTodayReading(userData) {
     const today = new Date().toDateString();
     const cacheKey = `daily_reading_${userData.name}_${today}`;
-
+    
     // 🔥 오늘 이미 읽었는지 체크
     const cachedReading = localStorage.getItem(cacheKey);
     if (cachedReading) {
@@ -948,37 +948,28 @@ async function initiatePayment(userData) {
     addMessage("Let me see what's shifting in your chart today...", 'nora');
     
     // 저장된 사주 결과에서 element와 pillars 가져오기
-    let element = 'Unknown';
-    let pillars = null;
-    
-    try {
-      const savedResults = localStorage.getItem('nora_saju_results');
-      if (savedResults) {
-        const sajuData = JSON.parse(savedResults);
-        // element 추출
-        if (sajuData.bubbles?.identity) {
-          const elementMatch = sajuData.bubbles.identity.match(/(Yin|Yang) (Metal|Water|Wood|Fire|Earth)/);
-          if (elementMatch) element = elementMatch[0];
-        }
-        pillars = sajuData.pillars;
-      }
-      
-      if (!element || element === 'Unknown') {
-        console.log('Element not found in saju results, trying user data...');
-        const savedUserData = localStorage.getItem('nora_user_data');
-        if (savedUserData) {
-          const parsed = JSON.parse(savedUserData);
-          if (parsed.birthday) {
-            // 생년월일로 대략적인 day master element 추정
-            element = estimateElementFromBirthday(parsed.birthday);
-            console.log('Estimated element from birthday:', element);
-          }
-        }
-      }
-      
-    } catch(e) {
-      console.error('Error reading saju data:', e);
+  let element = 'Unknown';
+  let pillars = null;
+  
+  try {
+    const savedResults = localStorage.getItem('nora_saju_results');
+    if (savedResults) {
+      const sajuData = JSON.parse(savedResults);
+      // Day pillar tg에서 직접 추출 — 가장 안정적
+      element = sajuData.pillars?.day?.tg || 'Unknown';
+      pillars = sajuData.pillars;
     }
+    
+    // pillars 없으면 userData로 재계산
+    if (!pillars && userData?.birthday) {
+      const kstData = convertToKST(userData);
+      pillars = kstData.pillars;
+      element = pillars?.day?.tg || 'Unknown';
+    }
+    
+  } catch(e) {
+    console.error('Error reading saju data:', e);
+  }
     
     const todayData = {
       type: 'daily_reading',
