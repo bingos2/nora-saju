@@ -1332,10 +1332,9 @@ function convertToKST(userData) {
           }
           
           // Google Ads 전환추적
-          gtag('event', 'purchase', {
-            'transaction_id': new Date().getTime(),
-            'value': 8.99,
-            'currency': 'USD'
+          gtag('event', 'conversion', {            
+            'send_to': 'AW-17991018308/nK42CM7xiYUcEMTO5IJD',
+            'transaction_id': data.orderID
           });
 
           await new Promise(r => setTimeout(r, 800));
