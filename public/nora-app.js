@@ -1331,10 +1331,9 @@ function convertToKST(userData) {
             }
           }
           
-          // Google Ads 전환추적
-          gtag('event', 'conversion', {            
+          gtag('event', 'conversion', {
             'send_to': 'AW-17991018308/nK42CM7xiYUcEMTO5IJD',
-            'transaction_id': data.orderID
+            'transaction_id': details.id
           });
 
           await new Promise(r => setTimeout(r, 800));
