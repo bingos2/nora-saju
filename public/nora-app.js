@@ -1331,11 +1331,6 @@ function convertToKST(userData) {
             }
           }
           
-          gtag('event', 'conversion', {
-            'send_to': 'AW-17991018308/nK42CM7xiYUcEMTO5IJD',
-            'transaction_id': details.id
-          });
-
           await new Promise(r => setTimeout(r, 800));
           await showTyping(900);
           addMessage("Your full reading is on its way — check your email in the next few minutes. ✨", 'nora');
