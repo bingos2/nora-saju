@@ -1244,10 +1244,7 @@ function convertToKST(userData) {
 
           addMessage("You're all set. 🔮", 'nora');
 
-          const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-            'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-          const userElement = elementKeys.find(k =>
-            sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+          const userElement = sajuResults?.pillars?.day?.tg || 'Unknown';
 
           try {
             // 30초 타임아웃 설정
@@ -1931,10 +1928,7 @@ async function showUpsell(name) {
         await showTyping(500);
         showTextInput('Your email (skip if you want)', async (email) => {
           if (email && email.includes('@')) {
-            const elementKeys = ['Yin Metal','Yang Metal','Yin Water','Yang Water',
-              'Yin Wood','Yang Wood','Yin Fire','Yang Fire','Yin Earth','Yang Earth'];
-            const userElement = elementKeys.find(k =>
-              sajuResults?.bubbles?.identity?.includes(k)) || 'Unknown';
+            const userElement = sajuResults?.pillars?.day?.tg || 'Unknown';
 
             try {
               await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
