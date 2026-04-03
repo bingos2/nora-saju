@@ -71,7 +71,17 @@ function NoraApp() {
         </div>
       </div>
 
-      <Script src="/nora-app.js" strategy="afterInteractive" />
+      <Script id="nora-app-loader" strategy="afterInteractive">
+        {`
+        (function() {
+        var s = document.createElement('script');
+        s.src = new URLSearchParams(window.location.search).get('v4') === '1'
+        ? '/nora-app-v4.js'
+        : '/nora-app.js';
+        document.body.appendChild(s);
+        })();
+        `}
+      </Script>
     </>
   );
 }
