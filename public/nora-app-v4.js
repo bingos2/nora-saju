@@ -180,15 +180,6 @@
     scrollToBottom();
   }
 
-  // Nora 이모티콘 GIF 삽입
-  function addNoraEmoji(gifName) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'nora-emoji-wrapper';
-    wrapper.innerHTML = `<img src="/assets/${gifName}" class="nora-emoji" alt="" />`;
-    chat.insertBefore(wrapper, typing);
-    scrollToBottom();
-  }
-
   function showTyping(duration = 800) {
     typing.classList.add('show');
     scrollToBottom();
@@ -533,7 +524,6 @@
 
   // ── 로딩 시퀀스 + Identity bubble ─────────────────────
   async function loadingAndIdentity() {
-    addNoraEmoji('nora_thinking.gif');
     await showTyping(800);
     addMessage('Give me a sec.', 'nora');
     await showTyping(1000);
@@ -572,7 +562,7 @@
     }
 
     // Identity bubble
-    addNoraEmoji('nora_crystal.gif');
+    
     await showTyping(700);
     addMessage(sajuResults.bubbles.identity, 'nora');
 
@@ -580,7 +570,6 @@
     if (userData.user_intent === 'question') {
       await showTyping(600);
       addMessage("What do you want to know?", 'nora');
-      addNoraEmoji('nora_thinking.gif');
       showTextInput('Ask anything...', async (question) => {
         await handleFreeQA(question);
       });
@@ -707,7 +696,7 @@
   // ══════════════════════════════════════════════════════
 
   async function showMainOptions() {
-    addNoraEmoji('nora_thinking.gif');
+    
     await showTyping(600);
     addMessage("You can go area by area — $3.99 each. Or I can just give you everything for $9. Most people end up doing both anyway.", 'nora');
 
@@ -723,7 +712,7 @@
       hideAllInputs();
       await showTyping(600);
       addMessage("What do you want to know?", 'nora');
-      addNoraEmoji('nora_thinking.gif');
+      
       showTextInput('Ask anything...', async (question) => {
         await showTyping(500);
         addMessage("Got it. Where should I send— actually, I'll just tell you here.", 'nora');
@@ -755,7 +744,7 @@
     fullBtn.onclick = async () => {
       addMessage(`Give me everything — $${PRICES.full_reading}`, 'user');
       hideAllInputs();
-      addNoraEmoji('nora_shh.gif');
+      
       await showTyping(700);
       addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why it's hard to break, your question answered directly, and one thing I can't say here.", 'nora');
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
@@ -884,7 +873,7 @@
           } else {
             await showTyping(500);
             addMessage("No rush. I'm here when you're ready.", 'nora');
-            addNoraEmoji('nora_coffee.gif');
+            
             addMessage("Take care of yourself. Your chart is watching.", 'nora');
           }
         });
@@ -971,7 +960,7 @@
             return;
           }
         } else if (type === 'paid_reading') {
-          addNoraEmoji('nora_thinking.gif');
+          
           addMessage("Your reading is on its way.", 'nora');
           await showTyping(600);
           addMessage("Most people open it three times.", 'nora');
@@ -1089,12 +1078,12 @@
             await showTyping(500);
             addMessage("Got it. I'll be in touch.", 'nora');
           }
-          addNoraEmoji('nora_coffee.gif');
+          
           await showTyping(500);
           addMessage("Take care of yourself. Your chart is watching.", 'nora');
         }, false);
       } else {
-        addNoraEmoji('nora_coffee.gif');
+        
         await showTyping(500);
         addMessage("Take care of yourself. Your chart is watching.", 'nora');
       }
@@ -1167,7 +1156,7 @@
       } else {
         await showTyping(500);
         addMessage("No rush. It'll be there when you're ready.", 'nora');
-        addNoraEmoji('nora_coffee.gif');
+        
         await showTyping(400);
         addMessage("Take care of yourself. Your chart is watching.", 'nora');
       }
@@ -1217,7 +1206,7 @@
           // 상대방 생년월일 모름 — 최소 핑퐁 후 종료
           await showTyping(600);
           addMessage("That's okay. Come back when you have it — your chart isn't going anywhere.", 'nora');
-          addNoraEmoji('nora_coffee.gif');
+          
           addMessage("Take care of yourself. Your chart is watching.", 'nora');
         }
       });
@@ -1249,7 +1238,7 @@
 
   async function proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone, theirBirthTime) {
     // 로딩 빌드업
-    addNoraEmoji('nora_thinking.gif');
+    
     await showTyping(800);
     addMessage(`Reading ${theirName}'s chart...`, 'nora');
     await showTyping(900);
@@ -1257,7 +1246,7 @@
     await showTyping(900);
     addMessage("Finding the pattern between you two...", 'nora');
 
-    addNoraEmoji('nora_shh.gif');
+    
     await showTyping(700);
     addMessage(`I can see why you're asking about ${theirName}. Your charts have a very specific dynamic — and it's not what most people would expect.`, 'nora');
 
@@ -1295,7 +1284,7 @@
             });
           } catch(e) { console.error(e); }
 
-          addNoraEmoji('nora_coffee.gif');
+          
           await showTyping(700);
           addMessage("Your compatibility reading is on its way. Check your inbox.", 'nora');
           await showTyping(500);
@@ -1325,7 +1314,7 @@
       try { sajuResults = JSON.parse(savedResults); } catch {}
     }
 
-    addNoraEmoji('nora_crystal.gif');
+    
     await showTyping(650);
     addMessage(`Hey ${saved.name}.`, 'nora');
     await showTyping(500);
@@ -1339,7 +1328,7 @@
       } else if (choice === 'Ask a question') {
         await showTyping(500);
         addMessage("What do you want to know?", 'nora');
-        addNoraEmoji('nora_thinking.gif');
+        
         showTextInput('Ask anything...', async (question) => {
           await initiateQAPayment(question);
         });
@@ -1449,7 +1438,7 @@
     fullBtn.onclick = async () => {
       addMessage('Get full reading', 'user');
       hideAllInputs();
-      addNoraEmoji('nora_shh.gif');
+      
       await showTyping(700);
       addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why it's hard to break, and one thing I can't say here.", 'nora');
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
