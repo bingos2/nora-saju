@@ -569,7 +569,7 @@
         await showTyping(800);
         addMessage(answer, 'nora');
       }
-    } catch(e) { typing.style.display = 'none; }
+    } catch(e) { typing.style.display = 'none'; }
 
     // ✅ 핑퐁 1번 — 사용자 반응 받기
     await showTyping(700);
