@@ -1,5 +1,5 @@
 (function() {
-  console.log('🚀 Nora app loaded');
+  console.log('🚀 Nora app v4 loaded');
 
   // ── lunar-javascript 로드 ──────────────────────────────
   if (!window._lunarLoaded) {
@@ -24,20 +24,17 @@
       if (typeof Solar === 'undefined') return null;
       const solar = Solar.fromYmdHms(kstYear, kstMonth, kstDay, kstHour, kstMinute, 0);
       const ec = solar.getLunar().getEightChar();
-      const yg = ec.getYearGan(),  yz = ec.getYearZhi();
+      const yg = ec.getYearGan(), yz = ec.getYearZhi();
       const mg = ec.getMonthGan(), mz = ec.getMonthZhi();
-      const dg = ec.getDayGan(),   dz = ec.getDayZhi();
-      const hg = ec.getTimeGan(),  hz = ec.getTimeZhi();
+      const dg = ec.getDayGan(), dz = ec.getDayZhi();
+      const hg = ec.getTimeGan(), hz = ec.getTimeZhi();
       return {
         year:  { tg_char: yg, tg: GAN_EN[yg]||yg, dz_char: yz, dz: ZHI_EN[yz]||yz },
         month: { tg_char: mg, tg: GAN_EN[mg]||mg, dz_char: mz, dz: ZHI_EN[mz]||mz },
         day:   { tg_char: dg, tg: GAN_EN[dg]||dg, dz_char: dz, dz: ZHI_EN[dz]||dz },
         hour:  { tg_char: hg, tg: GAN_EN[hg]||hg, dz_char: hz, dz: ZHI_EN[hz]||hz }
       };
-    } catch(e) {
-      console.error('Pillar calc error:', e);
-      return null;
-    }
+    } catch(e) { console.error('Pillar calc error:', e); return null; }
   }
 
   // ── 가격 상수 ──────────────────────────────────────────
@@ -49,49 +46,15 @@
     compatibility_full: '2.00'
   };
 
-  // ── 구매 플래그 — localStorage ─────────────────────────
+  // ── 구매 플래그 ────────────────────────────────────────
   function markFullReadingPurchased()  { localStorage.setItem('nora_purchased_full', 'true'); }
   function markLoveSectorPurchased()   { localStorage.setItem('nora_purchased_love', 'true'); }
   function hasFullReadingPurchase()    { return localStorage.getItem('nora_purchased_full') === 'true'; }
-  function hasLoveSectorPurchase()     { return localStorage.getItem('nora_purchased_love') === 'true'; }
-  function canAccessCompatibility()    { return hasLoveSectorPurchase() || hasFullReadingPurchase(); }
   function getCompatibilityPrice()     { return hasFullReadingPurchase() ? PRICES.compatibility_full : PRICES.compatibility; }
-
-  // Q&A 카운터
-  function getQACount()   { return parseInt(localStorage.getItem('nora_qa_count') || '0'); }
-  function incrementQA()  { localStorage.setItem('nora_qa_count', String(getQACount() + 1)); }
-
-  // ── UI 엘리먼트 ────────────────────────────────────────
-  const coverScreen  = document.getElementById('coverScreen');
-  const dmScreen     = document.getElementById('dmScreen');
-  const startBtn     = document.getElementById('startBtn');
-  const backBtn      = document.getElementById('backBtn');
-  const chat         = document.getElementById('chat');
-  let   typing       = document.getElementById('typing');
-  const inputArea    = document.getElementById('inputArea');
-  const choices      = document.getElementById('choices');
-  const categoryGrid = document.getElementById('categoryGrid');
-  const textInput    = document.getElementById('textInput');
-  const textField    = document.getElementById('textField');
-  const sendBtn      = document.getElementById('sendBtn');
-  const dropdowns    = document.getElementById('dropdowns');
-
-  const WEBHOOK_URL      = "https://hook.us2.make.com/fjivuprpif5r1asrcclnp1lvelgcc1ms";
-  const CHAT_WEBHOOK_URL = "https://hook.us2.make.com/oa5q85zc125iese4u31tmm88c7o6kz0g";
-  const PAID_WEBHOOK_URL = "https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59";
-
-  // ── 상태 ───────────────────────────────────────────────
-  let conversationStarted = false;
-  let viewedCategories    = [];
-  let sajuResults         = null;
-  let freeQAUsed          = false; // 첫 방문 무료 Q&A 사용 여부
-
-  let userData = {
-    name: '', birthday: '', birthday_confirmed: false,
-    state: '', timezone: '', timezone_short: '',
-    birth_time: 'unknown', note: '', reaction: '',
-    user_intent: '' // "question" or "curious"
-  };
+  function getFreeQAUsed()             { return localStorage.getItem('nora_free_qa_used') === 'true'; }
+  function markFreeQAUsed()            { localStorage.setItem('nora_free_qa_used', 'true'); }
+  function getPaidQAUsed()             { return localStorage.getItem('nora_paid_qa_used') === 'true'; }
+  function markPaidQAUsed()            { localStorage.setItem('nora_paid_qa_used', 'true'); }
 
   // ── US State → Timezone 매핑 ───────────────────────────
   const STATE_TIMEZONE = {
@@ -113,7 +76,6 @@
     'VA':'America/New_York','WA':'America/Los_Angeles','WV':'America/New_York',
     'WI':'America/Chicago','WY':'America/Denver','DC':'America/New_York'
   };
-
   const STATE_SHORT = {
     'AL':'CST','AK':'AKST','AZ':'MST','AR':'CST','CA':'PST','CO':'MST',
     'CT':'EST','DE':'EST','FL':'EST','GA':'EST','HI':'HST','ID':'MST',
@@ -125,7 +87,6 @@
     'TX':'CST','UT':'MST','VT':'EST','VA':'EST','WA':'PST','WV':'EST',
     'WI':'CST','WY':'MST','DC':'EST'
   };
-
   const US_STATES = [
     {code:'AL',name:'Alabama'},{code:'AK',name:'Alaska'},{code:'AZ',name:'Arizona'},
     {code:'AR',name:'Arkansas'},{code:'CA',name:'California'},{code:'CO',name:'Colorado'},
@@ -146,17 +107,62 @@
     {code:'WI',name:'Wisconsin'},{code:'WY',name:'Wyoming'},{code:'DC',name:'Washington D.C.'}
   ];
 
+  // ── UI 엘리먼트 ────────────────────────────────────────
+  const coverScreen  = document.getElementById('coverScreen');
+  const dmScreen     = document.getElementById('dmScreen');
+  const startBtn     = document.getElementById('startBtn');
+  const backBtn      = document.getElementById('backBtn');
+  const chat         = document.getElementById('chat');
+  let   typing       = document.getElementById('typing');
+  const inputArea    = document.getElementById('inputArea');
+  const choices      = document.getElementById('choices');
+  const categoryGrid = document.getElementById('categoryGrid');
+  const textInput    = document.getElementById('textInput');
+  const textField    = document.getElementById('textField');
+  const sendBtn      = document.getElementById('sendBtn');
+  const dropdowns    = document.getElementById('dropdowns');
+
+  const WEBHOOK_URL      = "https://hook.us2.make.com/fjivuprpif5r1asrcclnp1lvelgcc1ms";
+  const CHAT_WEBHOOK_URL = "https://hook.us2.make.com/oa5q85zc125iese4u31tmm88c7o6kz0g";
+  const PAID_WEBHOOK_URL = "https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59";
+
+  let conversationStarted = false;
+  let sajuResults = null;
+  let userData = {
+    name: '', birthday: '', birthday_confirmed: false,
+    state: '', timezone: '', timezone_short: '',
+    birth_time: 'unknown', reaction: '', user_intent: ''
+  };
+
+  // ── 아바타 로드 ────────────────────────────────────────
+  function initAvatar() {
+    const avatarImg         = document.getElementById('avatarImg');
+    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+    if (!avatarImg) return;
+    avatarImg.onload = () => {
+      avatarImg.style.display = 'block';
+      if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+    };
+    avatarImg.onerror = () => {
+      avatarImg.style.display = 'none';
+      if (avatarPlaceholder) avatarPlaceholder.style.display = 'flex';
+    };
+    const currentSrc = avatarImg.getAttribute('src');
+    avatarImg.src = '';
+    avatarImg.src = currentSrc || '/images/nora-avatar.jpg';
+  }
+
   // ── 스크린 전환 ────────────────────────────────────────
   startBtn.addEventListener('click', function() {
     coverScreen.classList.remove('active');
     dmScreen.classList.add('active');
     if (!conversationStarted) {
       typing = document.getElementById('typing');
+      initAvatar();
       startConversation();
       conversationStarted = true;
     }
   });
-
   backBtn.addEventListener('click', function() {
     dmScreen.classList.remove('active');
     coverScreen.classList.add('active');
@@ -171,11 +177,9 @@
 
   function addMessage(text, sender) {
     const now = new Date();
-    const h = now.getHours();
-    const m = String(now.getMinutes()).padStart(2, '0');
     const msg = document.createElement('div');
     msg.className = `message ${sender}`;
-    msg.innerHTML = `<div class="bubble">${text}<span class="bubble-time">${h}:${m}</span></div>`;
+    msg.innerHTML = `<div class="bubble">${text}<span class="bubble-time">${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}</span></div>`;
     chat.insertBefore(msg, typing);
     scrollToBottom();
   }
@@ -183,9 +187,7 @@
   function showTyping(duration = 800) {
     typing.classList.add('show');
     scrollToBottom();
-    return new Promise(resolve => {
-      setTimeout(() => { typing.classList.remove('show'); resolve(); }, duration);
-    });
+    return new Promise(resolve => { setTimeout(() => { typing.classList.remove('show'); resolve(); }, duration); });
   }
 
   function hideAllInputs() {
@@ -207,27 +209,6 @@
       choices.appendChild(btn);
     });
     choices.classList.add('show');
-    inputArea.classList.add('show');
-    scrollToBottom();
-  }
-
-  function showCategories(categories, callback) {
-    hideAllInputs();
-    categoryGrid.innerHTML = '';
-    categories.forEach(cat => {
-      const btn = document.createElement('button');
-      btn.className = 'category-btn';
-      if (viewedCategories.includes(cat)) btn.classList.add('viewed');
-      btn.textContent = cat;
-      btn.onclick = () => {
-        if (!viewedCategories.includes(cat)) viewedCategories.push(cat);
-        addMessage(cat, 'user');
-        hideAllInputs();
-        callback(cat);
-      };
-      categoryGrid.appendChild(btn);
-    });
-    categoryGrid.classList.add('show');
     inputArea.classList.add('show');
     scrollToBottom();
   }
@@ -278,17 +259,13 @@
       dropdowns.appendChild(rowDiv);
     });
     const btn = document.createElement('button');
-    btn.className = 'send-btn';
-    btn.textContent = 'Send';
+    btn.className = 'send-btn'; btn.textContent = 'Send';
     btn.style.cssText = 'width:100%;margin-top:10px;';
     btn.onclick = () => {
       const values = {};
       config.flat().forEach(item => { values[item.id] = document.getElementById(item.id).value; });
-      if (values.month === '' || values.day === '' || values.year === '') {
-        alert('Please select your birth date.'); return;
-      }
-      hideAllInputs();
-      callback(values);
+      if (values.month === '' || values.day === '' || values.year === '') { alert('Please select your birth date.'); return; }
+      hideAllInputs(); callback(values);
     };
     dropdowns.appendChild(btn);
     dropdowns.classList.add('show');
@@ -296,7 +273,6 @@
     scrollToBottom();
   }
 
-  // State 드롭다운 전용
   function showStateDropdown(callback) {
     hideAllInputs();
     dropdowns.innerHTML = '';
@@ -305,8 +281,7 @@
     const select = document.createElement('select');
     select.id = 'state';
     const ph = document.createElement('option');
-    ph.value = ''; ph.disabled = true; ph.selected = true;
-    ph.textContent = 'Select state';
+    ph.value = ''; ph.disabled = true; ph.selected = true; ph.textContent = 'Select state';
     select.appendChild(ph);
     US_STATES.forEach(s => {
       const o = document.createElement('option');
@@ -316,14 +291,12 @@
     rowDiv.appendChild(select);
     dropdowns.appendChild(rowDiv);
     const btn = document.createElement('button');
-    btn.className = 'send-btn';
-    btn.textContent = 'Send';
+    btn.className = 'send-btn'; btn.textContent = 'Send';
     btn.style.cssText = 'width:100%;margin-top:10px;';
     btn.onclick = () => {
       const val = document.getElementById('state').value;
       if (!val) { alert('Please select a state.'); return; }
-      hideAllInputs();
-      callback(val);
+      hideAllInputs(); callback(val);
     };
     dropdowns.appendChild(btn);
     dropdowns.classList.add('show');
@@ -333,50 +306,54 @@
 
   // ── 재방문 감지 ────────────────────────────────────────
   function isReturningUser() {
-    try {
-      const d = JSON.parse(localStorage.getItem('nora_user_data') || '{}');
-      return !!(d.name && d.birthday);
-    } catch { return false; }
+    try { const d = JSON.parse(localStorage.getItem('nora_user_data')||'{}'); return !!(d.name && d.birthday); }
+    catch { return false; }
   }
 
-  function hasCompleteSajuReading() {
+  // ── 위치 자동 감지 ─────────────────────────────────────
+  function detectTimezoneFromBrowser() {
     try {
-      const r = JSON.parse(localStorage.getItem('nora_saju_results') || '{}');
-      return !!(r.bubbles && r.categories);
-    } catch { return false; }
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const tzToState = {
+        'America/New_York':'NY','America/Chicago':'IL','America/Denver':'CO',
+        'America/Los_Angeles':'CA','America/Anchorage':'AK','Pacific/Honolulu':'HI',
+        'America/Phoenix':'AZ','America/Detroit':'MI','America/Indiana/Indianapolis':'IN'
+      };
+      const stateCode = tzToState[tz] || 'NY';
+      return { state: stateCode, timezone: STATE_TIMEZONE[stateCode]||tz, timezone_short: STATE_SHORT[stateCode]||'EST' };
+    } catch { return { state:'NY', timezone:'America/New_York', timezone_short:'EST' }; }
   }
 
   // ── KST 변환 ───────────────────────────────────────────
-  function convertToKST(userData) {
-    if (!userData.birthday) return userData;
+  function convertToKST(ud) {
+    if (!ud.birthday) return ud;
     try {
-      const [month, day, year] = userData.birthday.split('/').map(Number);
+      const [month, day, year] = ud.birthday.split('/').map(Number);
       if (!month || !day || !year) throw new Error('Invalid date');
-      if (userData.birth_time === 'unknown') {
+      if (ud.birth_time === 'unknown') {
         const pillars = calcPillars(year, month, day, 0, 0);
-        return { ...userData, pillars };
+        return { ...ud, pillars };
       }
-      const [hour, minute] = userData.birth_time.split(':').map(Number);
+      const [hour, minute] = ud.birth_time.split(':').map(Number);
       const offsets = {
         'America/New_York':-5,'America/Chicago':-6,'America/Denver':-7,
         'America/Los_Angeles':-8,'America/Anchorage':-9,'Pacific/Honolulu':-10,
         'America/Phoenix':-7,'America/Detroit':-5,'America/Indiana/Indianapolis':-5
       };
-      const userOffset = offsets[userData.timezone] || -5;
+      const userOffset = offsets[ud.timezone] || -5;
       let kstDate = new Date(year, month-1, day, hour, minute);
       kstDate.setHours(kstDate.getHours() + (9 - userOffset));
       const pad = n => String(n).padStart(2,'0');
       const pillars = calcPillars(kstDate.getFullYear(), kstDate.getMonth()+1, kstDate.getDate(), kstDate.getHours(), kstDate.getMinutes());
       return {
-        ...userData,
+        ...ud,
         birthday: `${pad(kstDate.getMonth()+1)}/${pad(kstDate.getDate())}/${kstDate.getFullYear()}`,
         birth_time: `${pad(kstDate.getHours())}:${pad(kstDate.getMinutes())}`,
         timezone: 'Asia/Seoul', timezone_short: 'KST',
-        original_timezone: userData.timezone,
-        original_timezone_short: userData.timezone_short,
+        original_timezone: ud.timezone, original_timezone_short: ud.timezone_short,
         pillars
       };
-    } catch(e) { console.error('KST error:', e); return userData; }
+    } catch(e) { console.error('KST error:', e); return ud; }
   }
 
   // ══════════════════════════════════════════════════════
@@ -384,44 +361,43 @@
   // ══════════════════════════════════════════════════════
 
   async function startConversation() {
-    if (isReturningUser()) {
-      await returningUserFlow();
-    } else {
-      await newUserFlow();
-    }
+    if (isReturningUser()) { await returningUserFlow(); }
+    else { await newUserFlow(); }
   }
 
-  // ── 새 유저 플로우 ─────────────────────────────────────
+  // ── 새 유저 — 이름 먼저 ────────────────────────────────
   async function newUserFlow() {
     await showTyping(700);
-    addMessage('Hey.', 'nora');
+    addMessage("Hey. I'm Nora.", 'nora');
     await showTyping(600);
-    addMessage('Something on your mind?', 'nora');
+    addMessage("I read Korean saju — Four Pillars of Destiny. What should I call you?", 'nora');
 
-    showChoices(['Yeah, I have a question', 'Not really, just curious'], async (choice) => {
-      userData.user_intent = choice === 'Yeah, I have a question' ? 'question' : 'curious';
-      if (userData.user_intent === 'question') {
-        await showTyping(700);
-        addMessage("Before I answer — I need your birth data. Saju is Korean astrology. It reads your energy using the exact moment you were born. The more precise, the sharper the reading.", 'nora');
-      } else {
-        await showTyping(700);
-        addMessage("Okay. Let's start with today. Give me your birth info and I'll show you what your chart looks like right now.", 'nora');
-      }
-      await collectBirthData();
+    showTextInput('Your name', async (name) => {
+      userData.name = name;
+      await showTyping(600);
+      addMessage(`Okay, ${name}. Something on your mind?`, 'nora');
+      showChoices(['Yeah, I have a question', 'Not really, just curious'], async (choice) => {
+        userData.user_intent = choice.includes('question') ? 'question' : 'curious';
+        if (userData.user_intent === 'question') {
+          await showTyping(700);
+          addMessage("I'd love to help. First, I need your birth info — saju reads your energy from the exact moment you were born.", 'nora');
+        } else {
+          await showTyping(700);
+          addMessage("Let's start with today. Give me your birth info and I'll show you what your chart looks like right now.", 'nora');
+        }
+        await collectBirthday();
+      });
     });
   }
 
   // ── 생년월일 수집 ──────────────────────────────────────
-  async function collectBirthData() {
+  async function collectBirthday() {
     await showTyping(600);
     addMessage("What's your birthday?", 'nora');
-
     const months = Array.from({length:12},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
     const days   = Array.from({length:31},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
     const years  = [];
-    const cy = new Date().getFullYear();
-    for (let i = cy; i >= 1900; i--) years.push({value:String(i),label:String(i)});
-
+    for (let i = new Date().getFullYear(); i >= 1900; i--) years.push({value:String(i),label:String(i)});
     showDropdowns([
       [{id:'month',options:months},{id:'day',options:days},{id:'year',options:years}]
     ], async (values) => {
@@ -436,21 +412,23 @@
   async function collectState() {
     await showTyping(600);
     addMessage("Do you know what state you were born in?", 'nora');
-
     showChoices(["Yes — I'll pick it", "Not sure"], async (choice) => {
       if (choice === "Yes — I'll pick it") {
         showStateDropdown(async (stateCode) => {
-          userData.state         = stateCode;
-          userData.timezone      = STATE_TIMEZONE[stateCode] || 'America/New_York';
-          userData.timezone_short = STATE_SHORT[stateCode]   || 'EST';
-          const stateName = US_STATES.find(s => s.code === stateCode)?.name || stateCode;
-          addMessage(stateName, 'user');
+          userData.state = stateCode;
+          userData.timezone = STATE_TIMEZONE[stateCode] || 'America/New_York';
+          userData.timezone_short = STATE_SHORT[stateCode] || 'EST';
+          addMessage(US_STATES.find(s=>s.code===stateCode)?.name||stateCode, 'user');
           await collectBirthTime();
         });
       } else {
-        userData.state          = '';
-        userData.timezone       = 'America/New_York';
-        userData.timezone_short = 'EST';
+        // ✅ 브라우저 timezone 자동 감지
+        const detected = detectTimezoneFromBrowser();
+        userData.state = detected.state;
+        userData.timezone = detected.timezone;
+        userData.timezone_short = detected.timezone_short;
+        await showTyping(500);
+        addMessage("No worries — I'll estimate based on your location.", 'nora');
         await collectBirthTime();
       }
     });
@@ -460,7 +438,6 @@
   async function collectBirthTime() {
     await showTyping(600);
     addMessage("What time were you born? If you don't know, that's okay.", 'nora');
-
     showChoices(['I know the time', "I don't know"], async (choice) => {
       if (choice === 'I know the time') {
         const hours   = Array.from({length:12},(_,i)=>({value:String(i+1),label:String(i+1)}));
@@ -491,100 +468,77 @@
       const h24 = parseInt(userData.birth_time.split(':')[0]);
       const min = userData.birth_time.split(':')[1];
       const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
-      const ap  = h24 >= 12 ? 'PM' : 'AM';
-      return `${h12}:${min} ${ap}`;
+      return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
     })();
-    const stateStr = userData.state ? `, ${US_STATES.find(s=>s.code===userData.state)?.name||userData.state}` : '';
-    addMessage(`Got it — ${prettyDate}${stateStr}, ${timeStr}. That right?`, 'nora');
-
+    const stateName = userData.state ? `, ${US_STATES.find(s=>s.code===userData.state)?.name||userData.state}` : '';
+    addMessage(`Got it — ${prettyDate}${stateName}, ${timeStr}. That right?`, 'nora');
     showChoices(['Yes', 'Fix it'], async (choice) => {
       if (choice === 'Yes') {
-        // 이름 수집
-        await showTyping(600);
-        addMessage("What should I call you?", 'nora');
-        showTextInput('Your name', async (name) => {
-          userData.name = name;
-          localStorage.setItem('nora_user_data', JSON.stringify({
-            name: userData.name,
-            birthday: userData.birthday,
-            state: userData.state,
-            timezone: userData.timezone,
-            timezone_short: userData.timezone_short,
-            birth_time: userData.birth_time
-          }));
-          await loadingAndIdentity();
-        });
+        userData.birthday_confirmed = true;
+        localStorage.setItem('nora_user_data', JSON.stringify({
+          name: userData.name, birthday: userData.birthday, state: userData.state,
+          timezone: userData.timezone, timezone_short: userData.timezone_short, birth_time: userData.birth_time
+        }));
+        await loadingAndReading();
       } else {
+        // ✅ 수정 항목만 선택해서 고치기
         await showTyping(500);
-        addMessage("No worries. Let's fix it.", 'nora');
-        await collectBirthData();
+        addMessage("What would you like to fix?", 'nora');
+        showChoices(['Birthday', 'Birth time', 'State'], async (fixChoice) => {
+          if (fixChoice === 'Birthday')         await collectBirthday();
+          else if (fixChoice === 'Birth time')  await collectBirthTime();
+          else                                  await collectState();
+        });
       }
     });
   }
 
-  // ── 로딩 시퀀스 + Identity bubble ─────────────────────
-  async function loadingAndIdentity() {
+  // ── 로딩 + 사주 계산 ──────────────────────────────────
+  async function loadingAndReading() {
     await showTyping(800);
     addMessage('Give me a sec.', 'nora');
     await showTyping(1000);
     addMessage('Reading your chart...', 'nora');
-
     typing.style.display = 'flex';
-
     try {
       const kstData = convertToKST(userData);
       const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(kstData)
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(kstData)
       });
       typing.style.display = 'none';
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-
-      if (result.success && result.data) {
-        sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-      } else if (result.reading) {
-        sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
-      } else {
-        sajuResults = result;
-      }
+      if (result.success && result.data)  sajuResults = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+      else if (result.reading)            sajuResults = typeof result.reading === 'string' ? JSON.parse(result.reading) : result.reading;
+      else                                sajuResults = result;
       if (kstData.pillars) sajuResults.pillars = kstData.pillars;
       localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
-
     } catch(e) {
       typing.style.display = 'none';
-      console.error('Webhook error:', e);
       await showTyping(700);
-      addMessage("Hmm, something didn't connect. Mind trying again?", 'nora');
-      showChoices(['Start over'], () => location.reload());
+      addMessage("Something didn't connect. Want to try again?", 'nora');
+      showChoices(['Try again'], () => location.reload());
       return;
     }
 
     // Identity bubble
-    
     await showTyping(700);
     addMessage(sajuResults.bubbles.identity, 'nora');
 
-    // 인텐트별 분기
     if (userData.user_intent === 'question') {
-      await showTyping(600);
-      addMessage("What do you want to know?", 'nora');
-      showTextInput('Ask anything...', async (question) => {
-        await handleFreeQA(question);
-      });
+      // ✅ 질문 받기
+      await showTyping(700);
+      addMessage("Now — what's your question?", 'nora');
+      showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
     } else {
       await showTyping(700);
       addMessage("How did that land?", 'nora');
-      showChoices(['🤯 That\'s exactly it', '🤔 Somewhat', '🙁 Not really me'], async (reaction) => {
+      showChoices(["That's exactly it", 'Somewhat', 'Not really me'], async (reaction) => {
         userData.reaction = reaction;
         await showTyping(600);
-        if (reaction === "🙁 Not really me") {
-          addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
-        } else {
-          addMessage("I thought so. There's more.", 'nora');
-        }
-        await showMainOptions();
+        if (reaction === 'Not really me') addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
+        else addMessage("I thought so. There's more.", 'nora');
+        await showMainOptions(false);
       });
     }
   }
@@ -593,84 +547,55 @@
   // Q&A 플로우
   // ══════════════════════════════════════════════════════
 
-  // 첫 번째 무료 Q&A — 채팅으로 직접 답변
   async function handleFreeQA(question) {
-    freeQAUsed = true;
+    markFreeQAUsed();
     typing.style.display = 'flex';
     try {
-      const element = sajuResults?.pillars?.day?.tg || 'Unknown';
       const response = await fetch(CHAT_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
-          type: 'qa_free',
-          user_input: question,
-          user_name: userData.name,
-          element: element,
+          type: 'qa_free', user_input: question, user_name: userData.name,
+          element: sajuResults?.pillars?.day?.tg || 'Unknown',
           bubble_identity: sajuResults?.bubbles?.identity || '',
-          pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
-          pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
           missing_element: sajuResults?.bubbles?.missing_element || ''
         })
       });
       typing.style.display = 'none';
       if (response.ok) {
         const result = await response.json();
-        const answer = result.response || result.answer || "Let me think about that differently.";
+        const answer = result.response || result.answer || "Let me think about that.";
+        await showTyping(900);
+        addMessage(`Hmm, that's what you're wondering about.`, 'nora');
         await showTyping(800);
         addMessage(answer, 'nora');
-      } else {
-        throw new Error('QA failed');
       }
-    } catch(e) {
-      typing.style.display = 'none';
-      await showTyping(600);
-      addMessage("Something's not connecting right now.", 'nora');
-    }
+    } catch(e) { typing.style.display = 'none; }
+
+    // ✅ 핑퐁 1번 — 사용자 반응 받기
     await showTyping(700);
-    addMessage("Want to go deeper?", 'nora');
-    await showMainOptions();
-  }
-
-  // 유료 Q&A — $2, 채팅으로 답변
-  async function handlePaidQA(question, email) {
-    incrementQA();
-    const qaCount = getQACount();
-
-    // 2번째 Q&A 시 업그레이드 넛지
-    if (qaCount >= 2) {
+    addMessage("Does that resonate?", 'nora');
+    showTextInput('Tell me what you think...', async (userResponse) => {
       await showTyping(700);
-      addMessage(`You're at $${(qaCount * 2).toFixed(0)}. Full Reading is $9 — you get everything. Worth the upgrade?`, 'nora');
-      showChoices([`Upgrade — $9`, 'Just this question'], async (choice) => {
-        if (choice === `Upgrade — $9`) {
-          await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
-        } else {
-          await executeQAPayment(question, email);
-        }
-      });
-    } else {
-      await executeQAPayment(question, email);
-    }
+      addMessage("I hear you.", 'nora');
+      await showTyping(900);
+      addMessage("Reading your chart is actually my job — so I should mention, going deeper does come with a small fee. In Korean tradition, 복채 — paying the fortune teller — is what seals the good energy in. 😌", 'nora');
+      await showTyping(700);
+      addMessage("Want to explore a specific area?", 'nora');
+      await showMainOptions(false);
+    }, true);
   }
 
-  async function executeQAPayment(question, email) {
-    // PayPal 결제 후 채팅 답변
-    showPayPalButton(email, PRICES.qa, 'qa_reading', '', async () => {
-      // 결제 완료 콜백 — OpenAI 직접 호출하여 채팅 답변
+  async function initiateQAPayment(question) {
+    markPaidQAUsed();
+    showPayPalButtonInline(PRICES.qa, async () => {
       typing.style.display = 'flex';
       try {
-        const element = sajuResults?.pillars?.day?.tg || 'Unknown';
         const response = await fetch(CHAT_WEBHOOK_URL, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
-            type: 'qa_paid',
-            user_input: question,
-            user_name: userData.name,
-            element: element,
+            type: 'qa_paid', user_input: question, user_name: userData.name,
+            element: sajuResults?.pillars?.day?.tg || 'Unknown',
             bubble_identity: sajuResults?.bubbles?.identity || '',
-            pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
-            pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
             missing_element: sajuResults?.bubbles?.missing_element || ''
           })
         });
@@ -678,166 +603,85 @@
         if (response.ok) {
           const result = await response.json();
           const answer = result.response || result.answer || "Let me think about that.";
+          await showTyping(900);
+          addMessage("Good question.", 'nora');
           await showTyping(800);
           addMessage(answer, 'nora');
         }
-      } catch(e) {
-        typing.style.display = 'none';
-        await showTyping(500);
-        addMessage("Something's not connecting. Let me try again.", 'nora');
-      }
+      } catch(e) { typing.style.display = 'none'; }
       await showTyping(700);
-      await showMainOptions();
+      await showMainOptions(true);
     });
   }
 
-  // ══════════════════════════════════════════════════════
-  // 메인 옵션 — Step 6 (UX v4)
-  // ══════════════════════════════════════════════════════
-
-  async function showMainOptions() {
-    
-    await showTyping(600);
-    addMessage("You can go area by area — $3.99 each. Or I can just give you everything for $9. Most people end up doing both anyway.", 'nora');
-
+  // ── 메인 옵션 ──────────────────────────────────────────
+  async function showMainOptions(hasAskedQuestion) {
     hideAllInputs();
     choices.innerHTML = '';
 
-    // Q&A 버튼
-    const qaBtn = document.createElement('button');
-    qaBtn.className = 'choice-btn';
-    qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
-    qaBtn.onclick = async () => {
-      addMessage(`Ask another question — $${PRICES.qa}`, 'user');
-      hideAllInputs();
-      await showTyping(600);
-      addMessage("What do you want to know?", 'nora');
-      
-      showTextInput('Ask anything...', async (question) => {
-        await showTyping(500);
-        addMessage("Got it. Where should I send— actually, I'll just tell you here.", 'nora');
-        // 이메일 없이 바로 결제 후 채팅 답변
-        await initiateQAPayment(question);
-      });
-    };
-    choices.appendChild(qaBtn);
+    if (!hasAskedQuestion) {
+      const freeUsed = getFreeQAUsed();
+      const paidUsed = getPaidQAUsed();
+      if (!freeUsed) {
+        // 무료 Q&A 버튼 (curious 선택한 신규 유저용)
+        const qaBtn = document.createElement('button');
+        qaBtn.className = 'choice-btn';
+        qaBtn.textContent = 'Ask a question — free';
+        qaBtn.onclick = async () => {
+          addMessage('Ask a question', 'user'); hideAllInputs();
+          await showTyping(600);
+          addMessage("What do you want to know?", 'nora');
+          showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
+        };
+        choices.appendChild(qaBtn);
+      } else if (!paidUsed) {
+        // 유료 Q&A 버튼
+        const qaBtn = document.createElement('button');
+        qaBtn.className = 'choice-btn';
+        qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
+        qaBtn.onclick = async () => {
+          addMessage(`Ask another question`, 'user'); hideAllInputs();
+          await showTyping(600);
+          addMessage("What do you want to know?", 'nora');
+          showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+        };
+        choices.appendChild(qaBtn);
+      }
+    }
 
-    // 섹터 버튼
     const sectorBtn = document.createElement('button');
     sectorBtn.className = 'choice-btn';
     sectorBtn.textContent = `Show me a specific area — $${PRICES.sector}`;
-    sectorBtn.onclick = async () => {
-      addMessage(`Show me a specific area — $${PRICES.sector}`, 'user');
-      hideAllInputs();
-      await showSectorSelection();
-    };
+    sectorBtn.onclick = async () => { addMessage('Show me a specific area', 'user'); hideAllInputs(); await showSectorSelection(); };
     choices.appendChild(sectorBtn);
 
-    // Full Reading 버튼
     const fullBtn = document.createElement('button');
     fullBtn.className = 'choice-btn';
     fullBtn.textContent = `Give me everything — $${PRICES.full_reading}`;
-    fullBtn.style.cssText = `
-      background: linear-gradient(135deg, rgba(201,169,233,0.25) 0%, rgba(232,180,211,0.25) 100%);
-      border: 1px solid rgba(201,169,233,0.4);
-    `;
+    fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);`;
     fullBtn.onclick = async () => {
-      addMessage(`Give me everything — $${PRICES.full_reading}`, 'user');
-      hideAllInputs();
-      
+      addMessage('Give me everything', 'user'); hideAllInputs();
       await showTyping(700);
-      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why it's hard to break, your question answered directly, and one thing I can't say here.", 'nora');
+      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
-
-    // Just browsing 버튼
-    const browseBtn = document.createElement('button');
-    browseBtn.className = 'choice-btn';
-    browseBtn.textContent = 'Just browsing for now';
-    browseBtn.onclick = async () => {
-      addMessage('Just browsing for now', 'user');
-      hideAllInputs();
-      await generateTodayReading(userData);
-    };
-    choices.appendChild(browseBtn);
 
     choices.classList.add('show');
     inputArea.classList.add('show');
     scrollToBottom();
   }
 
-  // Q&A 유료 결제 진입
-  async function initiateQAPayment(question) {
-    await showTyping(500);
-    addMessage("Where should I send— actually, I'll just tell you right here.", 'nora');
-    await showTyping(400);
-    addMessage("Completing payment first.", 'nora');
-
-    // 이메일 없이 PayPal 버튼 표시 — 결제 후 채팅 직접 답변
-    showPayPalButtonInline(PRICES.qa, async () => {
-      incrementQA();
-      const qaCount = getQACount();
-      typing.style.display = 'flex';
-      try {
-        const element = sajuResults?.pillars?.day?.tg || 'Unknown';
-        const response = await fetch(CHAT_WEBHOOK_URL, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            type: 'qa_paid',
-            user_input: question,
-            user_name: userData.name,
-            element: element,
-            bubble_identity: sajuResults?.bubbles?.identity || '',
-            pillar_day_tg: sajuResults?.pillars?.day?.tg || '',
-            pillar_day_tg_char: sajuResults?.pillars?.day?.tg_char || '',
-            missing_element: sajuResults?.bubbles?.missing_element || ''
-          })
-        });
-        typing.style.display = 'none';
-        if (response.ok) {
-          const result = await response.json();
-          const answer = result.response || result.answer || "Let me think about that.";
-          await showTyping(800);
-          addMessage(answer, 'nora');
-        }
-      } catch(e) {
-        typing.style.display = 'none';
-      }
-
-      // 2번째 Q&A 넛지
-      if (qaCount >= 2) {
-        await showTyping(700);
-        addMessage(`You're at $${(qaCount * 2).toFixed(0)}. Full Reading is $9 — you get everything. Worth the upgrade?`, 'nora');
-        showChoices([`Upgrade — $9`, 'Keep going'], async (choice) => {
-          if (choice === `Upgrade — $9`) {
-            await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
-          } else {
-            await showMainOptions();
-          }
-        });
-      } else {
-        await showTyping(600);
-        await showMainOptions();
-      }
-    });
-  }
-
-  // ── 섹터 선택 ──────────────────────────────────────────
   async function showSectorSelection() {
     await showTyping(600);
     addMessage("Four areas. Pick one.", 'nora');
-
     showChoices([
-      `❤️ Love — your patterns, your blindspots, and when that changes. $${PRICES.sector}`,
-      `💰 Money — why money flows the way it does, and when it shifts. $${PRICES.sector}`,
-      `💼 Work — where your energy is wasted and where it compounds. $${PRICES.sector}`,
-      `⚡ Energy — your body, your rhythm, and what drains you. $${PRICES.sector}`
+      `❤️ Love — your patterns, your blindspots, and when that changes`,
+      `💰 Money — why money flows the way it does, and when it shifts`,
+      `💼 Work — where your energy is wasted and where it compounds`,
+      `⚡ Energy — your body, your rhythm, and what drains you`
     ], async (choice) => {
-      const cat = choice.includes('Love') ? 'Love'
-                : choice.includes('Money') ? 'Money'
-                : choice.includes('Work') ? 'Work' : 'Energy';
+      const cat = choice.includes('Love')?'Love':choice.includes('Money')?'Money':choice.includes('Work')?'Work':'Energy';
       await showTyping(600);
       addMessage(`${cat} — got it. Where should I send it?`, 'nora');
       await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
@@ -845,44 +689,203 @@
   }
 
   // ══════════════════════════════════════════════════════
-  // 결제 플로우
+  // 재방문 유저
   // ══════════════════════════════════════════════════════
 
-  async function initiatePayment(userData, amount, type, category) {
-    await showTyping(500);
-    addMessage("Where should I send it? 📩", 'nora');
+  async function returningUserFlow() {
+    const saved = JSON.parse(localStorage.getItem('nora_user_data')||'{}');
+    userData.name = saved.name||''; userData.birthday = saved.birthday||'';
+    userData.state = saved.state||''; userData.timezone = saved.timezone||'America/New_York';
+    userData.timezone_short = saved.timezone_short||'EST'; userData.birth_time = saved.birth_time||'unknown';
+    userData.birthday_confirmed = true;
+    const sr = localStorage.getItem('nora_saju_results');
+    if (sr) { try { sajuResults = JSON.parse(sr); } catch {} }
 
-    const askEmail = async () => {
-      showTextInput('Your email', async (email) => {
-        if (!email || !email.includes('@')) {
-          await showTyping(400);
-          addMessage("That doesn't look right — try again?", 'nora');
-          askEmail(); return;
-        }
-        hideAllInputs();
+    await showTyping(650);
+    addMessage(`Hey ${saved.name}.`, 'nora');
+    await showTyping(600);
+
+    // ✅ 생년월일 확인
+    const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const parts = saved.birthday.split('/');
+    const prettyDate = `${mn[parseInt(parts[0])-1]} ${parseInt(parts[1])}, ${parts[2]}`;
+    const timeStr = saved.birth_time === 'unknown' ? 'time unknown' : (() => {
+      const h24 = parseInt(saved.birth_time.split(':')[0]);
+      const min = saved.birth_time.split(':')[1];
+      const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
+      return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
+    })();
+    addMessage(`Still ${prettyDate}, ${timeStr}?`, 'nora');
+
+    showChoices(['Yes', 'Update it'], async (choice) => {
+      if (choice === 'Update it') {
         await showTyping(500);
-        addMessage("Perfect. Completing payment.", 'nora');
-        showChoices(['Complete payment', 'Actually, maybe later'], async (choice) => {
-          if (choice === 'Complete payment') {
-            if (typeof paypal === 'undefined') {
-              await new Promise(resolve => {
-                const t = setInterval(() => { if (typeof paypal !== 'undefined') { clearInterval(t); resolve(); }}, 100);
-              });
-            }
-            showPayPalButton(email, amount, type, category);
-          } else {
+        addMessage("What would you like to update?", 'nora');
+        showChoices(['Birthday', 'Birth time', 'State'], async (fixChoice) => {
+          if (fixChoice === 'Birthday')         await collectBirthday();
+          else if (fixChoice === 'Birth time')  await collectBirthTime();
+          else                                  await collectState();
+        });
+        return;
+      }
+
+      await showTyping(600);
+      addMessage("What do you want to do today?", 'nora');
+      // ✅ 재방문: show me today / ask a question만
+      showChoices(['Show me today', 'Ask a question'], async (mainChoice) => {
+        if (mainChoice === 'Show me today') {
+          const kstData = convertToKST(userData);
+          userData = { ...userData, ...kstData };
+          await generateTodayReading(userData);
+        } else {
+          // 재방문자 Q&A — 유료만 (무료 없음)
+          if (getPaidQAUsed()) {
+            await showTyping(600);
+            addMessage("You've used your question for today. Want to explore a specific area instead?", 'nora');
+            await showDeeperOptions();
+            return;
+          }
+          await showTyping(600);
+          addMessage("What do you want to know?", 'nora');
+          showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+        }
+      });
+    });
+  }
+
+  // ══════════════════════════════════════════════════════
+  // Daily Reading
+  // ══════════════════════════════════════════════════════
+
+  async function generateTodayReading(ud) {
+    const today = new Date().toDateString();
+    const cacheKey = `daily_reading_${ud.name}_${today}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      await showTyping(800);
+      addMessage(JSON.parse(cached).today, 'nora');
+      await showDailyReadingReaction();
+      return;
+    }
+    await showTyping(1000);
+    addMessage("Let me see what's shifting in your chart today...", 'nora');
+    let element = 'Unknown', pillars = null;
+    try {
+      const sr = localStorage.getItem('nora_saju_results');
+      if (sr) { const d = JSON.parse(sr); element = d.pillars?.day?.tg||'Unknown'; pillars = d.pillars; }
+      if (!pillars && ud?.birthday) { const kd = convertToKST(ud); pillars = kd.pillars; element = pillars?.day?.tg||'Unknown'; }
+    } catch {}
+    typing.style.display = 'flex';
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const response = await fetch(WEBHOOK_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'daily_reading', date: new Date().toISOString().split('T')[0], name: ud.name, element, pillars }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      typing.style.display = 'none';
+      if (response.ok) {
+        const result = await response.json();
+        let todayReading;
+        if (Array.isArray(result) && result[0]?.text) todayReading = JSON.parse(result[0].text);
+        else if (result.today) todayReading = result;
+        else if (result.data) todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+        else todayReading = result;
+        localStorage.setItem(cacheKey, JSON.stringify(todayReading));
+        await showTyping(800);
+        addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
+        await showDailyReadingReaction();
+      }
+    } catch(e) {
+      typing.style.display = 'none';
+      await showTyping(600);
+      addMessage("Something's blocking today's reading. Want to go deeper instead?", 'nora');
+      await showDeeperOptions();
+    }
+  }
+
+  // ✅ Daily reading 후 반응 물어보고 → 자연스럽게 유도
+  async function showDailyReadingReaction() {
+    await showTyping(700);
+    addMessage("How's that sitting with you?", 'nora');
+    showChoices(['I want to know more', 'Okay, got it'], async (choice) => {
+      if (choice === 'I want to know more') {
+        await showTyping(600);
+        addMessage("What do you want to explore? You can go area by area, or get a full reading that covers everything.", 'nora');
+        await showDeeperOptions();
+      } else {
+        await showTyping(700);
+        addMessage("Anything else on your mind?", 'nora');
+        showChoices(['Actually, I want to know more', "I'm good"], async (c) => {
+          if (c === 'Actually, I want to know more') { await showDeeperOptions(); }
+          else {
             await showTyping(500);
-            addMessage("No rush. I'm here when you're ready.", 'nora');
-            
             addMessage("Take care of yourself. Your chart is watching.", 'nora');
           }
         });
+      }
+    });
+  }
+
+  // ✅ Deeper options — 섹터 + full reading만
+  async function showDeeperOptions() {
+    await showTyping(600);
+    addMessage("Which area do you want to explore?", 'nora');
+    hideAllInputs();
+    choices.innerHTML = '';
+    ['Love','Money','Work','Energy'].forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = `${cat} — $${PRICES.sector}`;
+      btn.onclick = async () => {
+        addMessage(cat, 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage(`${cat} — got it. Where should I send it?`, 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
+      };
+      choices.appendChild(btn);
+    });
+    const fullBtn = document.createElement('button');
+    fullBtn.className = 'choice-btn';
+    fullBtn.textContent = `Full reading — $${PRICES.full_reading}`;
+    fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);width:100%;margin-top:4px;`;
+    fullBtn.onclick = async () => {
+      addMessage('Full reading', 'user'); hideAllInputs();
+      await showTyping(700);
+      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
+      await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+    };
+    choices.appendChild(fullBtn);
+    choices.classList.add('show');
+    inputArea.classList.add('show');
+    scrollToBottom();
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 결제
+  // ══════════════════════════════════════════════════════
+
+  // ✅ 이메일 입력 → Perfect → 바로 PayPal 버튼
+  async function initiatePayment(ud, amount, type, category) {
+    await showTyping(500);
+    addMessage("Where should I send it? 📩", 'nora');
+    const askEmail = async () => {
+      showTextInput('Your email', async (email) => {
+        if (!email || !email.includes('@')) {
+          await showTyping(400); addMessage("That doesn't look right — try again?", 'nora');
+          askEmail(); return;
+        }
+        hideAllInputs();
+        await showTyping(400);
+        addMessage("Perfect.", 'nora');
+        showPayPalButton(email, amount, type, category);
       }, false);
     };
     askEmail();
   }
 
-  // ── PayPal 버튼 (이메일 포함 — 섹터/풀리딩/궁합용) ────
   function showPayPalButton(email, amount, type, category, onSuccessCallback) {
     const existing = document.getElementById('paypal-button-container');
     if (existing) existing.remove();
@@ -891,7 +894,6 @@
     wrapper.style.cssText = 'padding:12px 0;';
     chat.insertBefore(wrapper, typing);
     scrollToBottom();
-
     paypal.Buttons({
       createOrder: (data, actions) => actions.order.create({
         purchase_units: [{ amount: { value: amount }, custom_id: email }],
@@ -899,128 +901,70 @@
       }),
       onApprove: (data, actions) => actions.order.capture().then(async (details) => {
         wrapper.remove();
-
-        // 구매 플래그 저장
-        if (type === 'paid_reading')      markFullReadingPurchased();
+        if (type === 'paid_reading') markFullReadingPurchased();
         if (type === 'category_reading' && category === 'Love') markLoveSectorPurchased();
-
         if (onSuccessCallback) { onSuccessCallback(); return; }
-
         addMessage("You're all set. 🔮", 'nora');
-
-        if (!sajuResults) {
-          const saved = localStorage.getItem('nora_saju_results');
-          if (saved) sajuResults = JSON.parse(saved);
-        }
+        if (!sajuResults) { const s = localStorage.getItem('nora_saju_results'); if (s) sajuResults = JSON.parse(s); }
         if (sajuResults && !sajuResults.pillars && userData?.birthday) {
-          const kstData = convertToKST(userData);
-          sajuResults.pillars = kstData.pillars;
+          sajuResults.pillars = convertToKST(userData).pillars;
           localStorage.setItem('nora_saju_results', JSON.stringify(sajuResults));
         }
-
         const userElement = sajuResults?.pillars?.day?.tg || 'Unknown';
-        const basePayload = buildBasePayload(email, userElement);
-
         try {
           const ctrl = new AbortController();
-          const tid  = setTimeout(() => ctrl.abort(), 30000);
+          const tid = setTimeout(() => ctrl.abort(), 30000);
           await fetch(PAID_WEBHOOK_URL, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            signal: ctrl.signal,
+            method:'POST', headers:{'Content-Type':'application/json'}, signal: ctrl.signal,
             body: JSON.stringify(
               type === 'category_reading'
-                ? { type: 'category_reading', category, ...basePayload }
-                : type === 'compatibility_reading'
-                ? { type: 'compatibility_reading', ...basePayload }
-                : { type: 'paid_reading', ...basePayload }
+                ? { type:'category_reading', category, ...buildBasePayload(email, userElement) }
+                : { type:'paid_reading', ...buildBasePayload(email, userElement) }
             )
           });
           clearTimeout(tid);
-        } catch(e) {
-          console.error('Webhook error:', e);
-        }
+        } catch(e) { console.error('Webhook error:', e); }
 
         await showTyping(900);
         if (type === 'category_reading') {
           addMessage(`Your ${category} reading is on its way — check your email. ✨`, 'nora');
-          // Love 섹터 후 궁합 넛지
           if (category === 'Love') {
             await showTyping(700);
             addMessage("By the way — if there's someone specific, I can read you both together.", 'nora');
             showChoices(['Show me our compatibility', 'Maybe later'], async (c) => {
-              if (c === 'Show me our compatibility') {
-                await showCompatibilityTeaser();
-              } else {
-                await showTyping(500);
-                addMessage("No rush. It'll be there when you're ready.", 'nora');
-                await postPurchaseFlow(type);
-              }
+              if (c === 'Show me our compatibility') await showCompatibilityTeaser();
+              else await postPurchaseFlow();
             });
             return;
           }
-        } else if (type === 'paid_reading') {
-          
+        } else {
           addMessage("Your reading is on its way.", 'nora');
           await showTyping(600);
           addMessage("Most people open it three times.", 'nora');
-          await showTyping(600);
-          addMessage("Is there someone in your life who needs to hear this too? Not your reading — just send them to Nora.", 'nora');
-          showChoices(['Send Nora to a friend', 'Keep it to myself'], async (c) => {
-            if (c === 'Send Nora to a friend') {
-              const url = 'https://readnora.com';
-              if (navigator.share) {
-                try { await navigator.share({ text: `this korean saju thing actually knew things about me 😭🔮\n${url}`, url }); } catch {}
-              } else {
-                await navigator.clipboard.writeText(url);
-                addMessage("Copied! Send it to someone 👀", 'nora');
-              }
-            }
-            // Full Reading 후 궁합 넛지
-            await showTyping(700);
-            addMessage("One more thing — if there's someone specific on your mind, I can read you both together.", 'nora');
-            showChoices([`Show me our compatibility — $${PRICES.compatibility_full}`, 'Not right now'], async (nc) => {
-              if (nc.includes('compatibility')) {
-                await showCompatibilityTeaser();
-              } else {
-                await postPurchaseFlow(type);
-              }
-            });
+          await showTyping(700);
+          addMessage("One more thing — if there's someone specific on your mind, I can read you both together.", 'nora');
+          showChoices([`Show me our compatibility — $${PRICES.compatibility_full}`, 'Not right now'], async (nc) => {
+            if (nc.includes('compatibility')) await showCompatibilityTeaser();
+            else await postPurchaseFlow();
           });
           return;
         }
-        await postPurchaseFlow(type);
+        await postPurchaseFlow();
       }),
       onError: (err) => {
-        console.error('PayPal error:', err);
         wrapper.remove();
         addMessage("Payment didn't go through. Let's try again.", 'nora');
-        setTimeout(() => {
-          showChoices(['Try again', 'Maybe later'], async (c) => {
-            if (c === 'Try again') showPayPalButton(email, amount, type, category, onSuccessCallback);
-          });
-        }, 800);
+        setTimeout(() => { showChoices(['Try again','Maybe later'], async (c) => { if (c==='Try again') showPayPalButton(email,amount,type,category,onSuccessCallback); }); }, 800);
       },
       onCancel: () => {
         wrapper.remove();
-        addMessage("No problem — you can try again anytime. 💜", 'nora');
-        setTimeout(() => {
-          showChoices(['Try again', 'Maybe later'], async (c) => {
-            if (c === 'Try again') showPayPalButton(email, amount, type, category, onSuccessCallback);
-          });
-        }, 800);
+        addMessage("No problem — anytime. 💜", 'nora');
+        setTimeout(() => { showChoices(['Try again','Maybe later'], async (c) => { if (c==='Try again') showPayPalButton(email,amount,type,category,onSuccessCallback); }); }, 800);
       }
     }).render('#paypal-button-container');
-
-    wrapper.insertAdjacentHTML('afterbegin', `
-      <p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">
-        By completing your purchase, you agree to our
-        <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a>
-      </p>
-    `);
+    wrapper.insertAdjacentHTML('afterbegin', `<p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">By completing your purchase, you agree to our <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a></p>`);
   }
 
-  // ── PayPal 버튼 (이메일 없음 — Q&A용 인라인) ──────────
   function showPayPalButtonInline(amount, onSuccessCallback) {
     const existing = document.getElementById('paypal-button-container');
     if (existing) existing.remove();
@@ -1029,31 +973,22 @@
     wrapper.style.cssText = 'padding:12px 0;';
     chat.insertBefore(wrapper, typing);
     scrollToBottom();
-
     paypal.Buttons({
       createOrder: (data, actions) => actions.order.create({
         purchase_units: [{ amount: { value: amount } }],
-        application_context: { shipping_preference: 'NO_SHIPPING', user_action: 'PAY_NOW' }
+        application_context: { shipping_preference:'NO_SHIPPING', user_action:'PAY_NOW' }
       }),
       onApprove: (data, actions) => actions.order.capture().then(async () => {
         wrapper.remove();
         addMessage("You're all set. 🔮", 'nora');
         if (onSuccessCallback) onSuccessCallback();
       }),
-      onError: () => {
-        wrapper.remove();
-        addMessage("Payment didn't go through. Let's try again.", 'nora');
-      },
-      onCancel: () => {
-        wrapper.remove();
-        addMessage("No problem — anytime. 💜", 'nora');
-      }
+      onError: () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); },
+      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime. 💜", 'nora'); }
     }).render('#paypal-button-container');
   }
 
-  // ── 결제 후 공통 플로우 ────────────────────────────────
-  async function postPurchaseFlow(type) {
-    // Weekly mail 제안
+  async function postPurchaseFlow() {
     await showTyping(700);
     addMessage("Want me to check in with you? I send something worth reading once a week.", 'nora');
     showChoices(['Yes, send it', 'No thanks'], async (choice) => {
@@ -1062,104 +997,56 @@
         addMessage("What's your email?", 'nora');
         showTextInput('Your email', async (email) => {
           if (email && email.includes('@')) {
-            try {
-              await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({
-                  type: 'weekly_subscribe',
-                  email,
-                  name: userData.name,
-                  element: sajuResults?.pillars?.day?.tg || 'Unknown',
-                  timestamp: new Date().toISOString()
-                })
-              });
-            } catch(e) { console.error(e); }
+            try { await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name, element: sajuResults?.pillars?.day?.tg||'Unknown', timestamp: new Date().toISOString() }) }); } catch {}
             await showTyping(500);
             addMessage("Got it. I'll be in touch.", 'nora');
           }
-          
           await showTyping(500);
           addMessage("Take care of yourself. Your chart is watching.", 'nora');
         }, false);
       } else {
-        
         await showTyping(500);
         addMessage("Take care of yourself. Your chart is watching.", 'nora');
       }
     });
   }
 
-  // ── 공통 페이로드 빌더 ────────────────────────────────
   function buildBasePayload(email, userElement) {
     return {
       email, name: userData.name, element: userElement,
-      missing_element: sajuResults?.bubbles?.missing_element || '',
+      missing_element: sajuResults?.bubbles?.missing_element||'',
       birthday: userData.birthday, birth_time: userData.birth_time,
-      reaction: userData.reaction || 'Unknown',
-      element_slug: userElement.toLowerCase().replace(/ /g, '-'),
-      bubble_identity: sajuResults?.bubbles?.identity || '',
-      bubble_pattern:  sajuResults?.bubbles?.pattern  || '',
-      bubble_action:   sajuResults?.bubbles?.action   || '',
-      bubble_question: sajuResults?.bubbles?.your_question || '',
-      compat_1: sajuResults?.bubbles?.compatible_elements?.[0] || '',
-      compat_2: sajuResults?.bubbles?.compatible_elements?.[1] || '',
-      compat_3: sajuResults?.bubbles?.compatible_elements?.[2] || '',
-      love_today:   sajuResults?.categories?.Love?.today       || '',
-      love_month:   sajuResults?.categories?.Love?.this_month  || '',
-      love_year:    sajuResults?.categories?.Love?.this_year   || '',
-      money_today:  sajuResults?.categories?.Money?.today      || '',
-      money_month:  sajuResults?.categories?.Money?.this_month || '',
-      money_year:   sajuResults?.categories?.Money?.this_year  || '',
-      work_today:   sajuResults?.categories?.Work?.today       || '',
-      work_month:   sajuResults?.categories?.Work?.this_month  || '',
-      work_year:    sajuResults?.categories?.Work?.this_year   || '',
-      energy_today: sajuResults?.categories?.Energy?.today      || '',
-      energy_month: sajuResults?.categories?.Energy?.this_month || '',
-      energy_year:  sajuResults?.categories?.Energy?.this_year  || '',
-      pillar_year_tg_char:  sajuResults?.pillars?.year?.tg_char  || '',
-      pillar_year_tg:       sajuResults?.pillars?.year?.tg       || '',
-      pillar_year_dz_char:  sajuResults?.pillars?.year?.dz_char  || '',
-      pillar_year_dz:       sajuResults?.pillars?.year?.dz       || '',
-      pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char || '',
-      pillar_month_tg:      sajuResults?.pillars?.month?.tg      || '',
-      pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char || '',
-      pillar_month_dz:      sajuResults?.pillars?.month?.dz      || '',
-      pillar_day_tg_char:   sajuResults?.pillars?.day?.tg_char   || '',
-      pillar_day_tg:        sajuResults?.pillars?.day?.tg        || '',
-      pillar_day_dz_char:   sajuResults?.pillars?.day?.dz_char   || '',
-      pillar_day_dz:        sajuResults?.pillars?.day?.dz        || '',
-      pillar_hour_tg_char:  sajuResults?.pillars?.hour?.tg_char  || '',
-      pillar_hour_tg:       sajuResults?.pillars?.hour?.tg       || '',
-      pillar_hour_dz_char:  sajuResults?.pillars?.hour?.dz_char  || '',
-      pillar_hour_dz:       sajuResults?.pillars?.hour?.dz       || '',
+      reaction: userData.reaction||'Unknown',
+      element_slug: userElement.toLowerCase().replace(/ /g,'_'),
+      bubble_identity: sajuResults?.bubbles?.identity||'',
+      bubble_pattern:  sajuResults?.bubbles?.pattern||'',
+      bubble_action:   sajuResults?.bubbles?.action||'',
+      compat_1: sajuResults?.bubbles?.compatible_elements?.[0]||'',
+      compat_2: sajuResults?.bubbles?.compatible_elements?.[1]||'',
+      compat_3: sajuResults?.bubbles?.compatible_elements?.[2]||'',
+      love_today:   sajuResults?.categories?.Love?.today||'',   love_month: sajuResults?.categories?.Love?.this_month||'',   love_year: sajuResults?.categories?.Love?.this_year||'',
+      money_today:  sajuResults?.categories?.Money?.today||'',  money_month: sajuResults?.categories?.Money?.this_month||'', money_year: sajuResults?.categories?.Money?.this_year||'',
+      work_today:   sajuResults?.categories?.Work?.today||'',   work_month: sajuResults?.categories?.Work?.this_month||'',   work_year: sajuResults?.categories?.Work?.this_year||'',
+      energy_today: sajuResults?.categories?.Energy?.today||'', energy_month: sajuResults?.categories?.Energy?.this_month||'', energy_year: sajuResults?.categories?.Energy?.this_year||'',
+      pillar_year_tg:  sajuResults?.pillars?.year?.tg||'',  pillar_year_dz:  sajuResults?.pillars?.year?.dz||'',
+      pillar_month_tg: sajuResults?.pillars?.month?.tg||'', pillar_month_dz: sajuResults?.pillars?.month?.dz||'',
+      pillar_day_tg:   sajuResults?.pillars?.day?.tg||'',   pillar_day_dz:   sajuResults?.pillars?.day?.dz||'',
+      pillar_hour_tg:  sajuResults?.pillars?.hour?.tg||'',  pillar_hour_dz:  sajuResults?.pillars?.hour?.dz||'',
       timestamp: new Date().toISOString()
     };
   }
 
   // ══════════════════════════════════════════════════════
-  // 궁합 플로우
+  // 궁합
   // ══════════════════════════════════════════════════════
 
   async function showCompatibilityTeaser() {
     await showTyping(600);
     addMessage("You give me their birthday — and state if you have it. I read both charts together. Where your energies sync, where they don't, and when things shift between you.", 'nora');
-    await showTyping(500);
-    addMessage("That's interesting.", 'nora');
-    await showTyping(500);
-    addMessage("It usually is. Especially when there's already a specific person in mind.", 'nora');
-
     const price = getCompatibilityPrice();
-    showChoices([`Show me our compatibility — $${price}`, 'Maybe later'], async (choice) => {
-      if (choice.includes('compatibility')) {
-        await collectCompatibilityData();
-      } else {
-        await showTyping(500);
-        addMessage("No rush. It'll be there when you're ready.", 'nora');
-        
-        await showTyping(400);
-        addMessage("Take care of yourself. Your chart is watching.", 'nora');
-      }
+    showChoices([`Let's do it — $${price}`, 'Maybe later'], async (choice) => {
+      if (choice.includes("do it")) await collectCompatibilityData();
+      else await postPurchaseFlow();
     });
   }
 
@@ -1168,123 +1055,63 @@
     addMessage("What do you call them?", 'nora');
     showTextInput("Their name or nickname", async (theirName) => {
       await showTyping(500);
-      addMessage("Now — do you know their birthday?", 'nora');
+      addMessage("Do you know their birthday?", 'nora');
       showChoices(['Yes, I have it', 'No'], async (choice) => {
-        if (choice === 'Yes, I have it') {
-          const months = Array.from({length:12},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
-          const days   = Array.from({length:31},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
-          const years  = [];
-          const cy = new Date().getFullYear();
-          for (let i = cy; i >= 1900; i--) years.push({value:String(i),label:String(i)});
-
+        if (choice === 'No') { await showTyping(500); addMessage("Come back when you have it — your chart isn't going anywhere.", 'nora'); return; }
+        const months = Array.from({length:12},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
+        const days   = Array.from({length:31},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
+        const years  = [];
+        for (let i = new Date().getFullYear(); i >= 1900; i--) years.push({value:String(i),label:String(i)});
+        showDropdowns([
+          [{id:'month',options:months},{id:'day',options:days},{id:'year',options:years}]
+        ], async (values) => {
+          const theirBirthday = `${values.month}/${values.day}/${values.year}`;
+          const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          addMessage(`${mn[parseInt(values.month)-1]} ${parseInt(values.day)}, ${values.year}`, 'user');
           await showTyping(500);
-          addMessage("What's their birthday?", 'nora');
-          showDropdowns([
-            [{id:'month',options:months},{id:'day',options:days},{id:'year',options:years}]
-          ], async (values) => {
-            const theirBirthday = `${values.month}/${values.day}/${values.year}`;
-            const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            addMessage(`${mn[parseInt(values.month)-1]} ${parseInt(values.day)}, ${values.year}`, 'user');
-
-            // State
-            await showTyping(500);
-            addMessage("Do you know what state they were born in?", 'nora');
-            showChoices(["Yes — I'll pick it", "Not sure"], async (stChoice) => {
-              let theirTimezone = 'America/New_York';
-              if (stChoice === "Yes — I'll pick it") {
-                showStateDropdown(async (stateCode) => {
-                  theirTimezone = STATE_TIMEZONE[stateCode] || 'America/New_York';
-                  addMessage(US_STATES.find(s=>s.code===stateCode)?.name || stateCode, 'user');
-                  await collectTheirBirthTime(theirName, theirBirthday, theirTimezone);
-                });
-              } else {
-                await collectTheirBirthTime(theirName, theirBirthday, theirTimezone);
-              }
-            });
+          addMessage("Do you know what state they were born in?", 'nora');
+          showChoices(["Yes — I'll pick it", "Not sure"], async (stChoice) => {
+            let theirTimezone = 'America/New_York';
+            if (stChoice === "Yes — I'll pick it") {
+              showStateDropdown(async (stateCode) => {
+                theirTimezone = STATE_TIMEZONE[stateCode]||'America/New_York';
+                addMessage(US_STATES.find(s=>s.code===stateCode)?.name||stateCode, 'user');
+                await proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone);
+              });
+            } else {
+              await proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone);
+            }
           });
-        } else {
-          // 상대방 생년월일 모름 — 최소 핑퐁 후 종료
-          await showTyping(600);
-          addMessage("That's okay. Come back when you have it — your chart isn't going anywhere.", 'nora');
-          
-          addMessage("Take care of yourself. Your chart is watching.", 'nora');
-        }
+        });
       });
     });
   }
 
-  async function collectTheirBirthTime(theirName, theirBirthday, theirTimezone) {
-    await showTyping(500);
-    addMessage("Do you know their birth time?", 'nora');
-    showChoices(['Yes', 'No — skip it'], async (choice) => {
-      let theirBirthTime = 'unknown';
-      if (choice === 'Yes') {
-        const hours   = Array.from({length:12},(_,i)=>({value:String(i+1),label:String(i+1)}));
-        const minutes = Array.from({length:60},(_,i)=>({value:String(i).padStart(2,'0'),label:String(i).padStart(2,'0')}));
-        const ampm    = [{value:'AM',label:'AM'},{value:'PM',label:'PM'}];
-        showDropdowns([[{id:'hour',options:hours},{id:'minute',options:minutes},{id:'ampm',options:ampm}]], async (vals) => {
-          let h = parseInt(vals.hour);
-          if (vals.ampm === 'PM' && h !== 12) h += 12;
-          if (vals.ampm === 'AM' && h === 12) h = 0;
-          theirBirthTime = `${String(h).padStart(2,'0')}:${vals.minute}`;
-          addMessage(`${vals.hour}:${vals.minute} ${vals.ampm}`, 'user');
-          await proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone, theirBirthTime);
-        });
-      } else {
-        await proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone, theirBirthTime);
-      }
-    });
-  }
-
-  async function proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone, theirBirthTime) {
-    // 로딩 빌드업
-    
+  async function proceedCompatibilityPayment(theirName, theirBirthday, theirTimezone) {
     await showTyping(800);
     addMessage(`Reading ${theirName}'s chart...`, 'nora');
     await showTyping(900);
     addMessage("Mapping how your energies interact...", 'nora');
     await showTyping(900);
     addMessage("Finding the pattern between you two...", 'nora');
-
-    
     await showTyping(700);
     addMessage(`I can see why you're asking about ${theirName}. Your charts have a very specific dynamic — and it's not what most people would expect.`, 'nora');
-
     const price = getCompatibilityPrice();
     showChoices([`Get the full compatibility reading — $${price}`], async () => {
       await showTyping(500);
       addMessage("Where should I send it? 📩", 'nora');
       showTextInput('Your email', async (email) => {
-        if (!email || !email.includes('@')) {
-          addMessage("Try that again?", 'nora');
-          return;
-        }
+        if (!email || !email.includes('@')) { addMessage("Try that again?", 'nora'); return; }
         hideAllInputs();
-
-        // 페이로드에 상대방 정보 추가
-        const compatPayload = {
-          their_name:      theirName,
-          their_birthday:  theirBirthday,
-          their_timezone:  theirTimezone,
-          their_birth_time: theirBirthTime
-        };
-
+        await showTyping(400);
+        addMessage("Perfect.", 'nora');
         showPayPalButton(email, price, 'compatibility_reading', '', async () => {
-          // 궁합은 Make.com으로 별도 웹훅
-          const userElement = sajuResults?.pillars?.day?.tg || 'Unknown';
+          const userElement = sajuResults?.pillars?.day?.tg||'Unknown';
           try {
-            await fetch(PAID_WEBHOOK_URL, {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({
-                type: 'compatibility_reading',
-                ...buildBasePayload(email, userElement),
-                ...compatPayload
-              })
+            await fetch(PAID_WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ type:'compatibility_reading', their_name: theirName, their_birthday: theirBirthday, their_timezone: theirTimezone, ...buildBasePayload(email, userElement) })
             });
           } catch(e) { console.error(e); }
-
-          
           await showTyping(700);
           addMessage("Your compatibility reading is on its way. Check your inbox.", 'nora');
           await showTyping(500);
@@ -1294,198 +1121,20 @@
     });
   }
 
-  // ══════════════════════════════════════════════════════
-  // 재방문 유저 플로우
-  // ══════════════════════════════════════════════════════
-
-  async function returningUserFlow() {
-    const saved = JSON.parse(localStorage.getItem('nora_user_data') || '{}');
-    userData.name           = saved.name || '';
-    userData.birthday       = saved.birthday || '';
-    userData.state          = saved.state || '';
-    userData.timezone       = saved.timezone || 'America/New_York';
-    userData.timezone_short = saved.timezone_short || 'EST';
-    userData.birth_time     = saved.birth_time || 'unknown';
-    userData.birthday_confirmed = true;
-
-    // 저장된 saju results 로드
-    const savedResults = localStorage.getItem('nora_saju_results');
-    if (savedResults) {
-      try { sajuResults = JSON.parse(savedResults); } catch {}
-    }
-
-    
-    await showTyping(650);
-    addMessage(`Hey ${saved.name}.`, 'nora');
-    await showTyping(500);
-    addMessage("Want to see what today has in store for you?", 'nora');
-
-    showChoices(['Show me today', 'Ask a question', 'Go deeper'], async (choice) => {
-      if (choice === 'Show me today') {
-        const kstData = convertToKST(userData);
-        userData = { ...userData, ...kstData };
-        await generateTodayReading(userData);
-      } else if (choice === 'Ask a question') {
-        await showTyping(500);
-        addMessage("What do you want to know?", 'nora');
-        
-        showTextInput('Ask anything...', async (question) => {
-          await initiateQAPayment(question);
-        });
-      } else {
-        await showMainOptions();
-      }
-    });
-  }
-
-  // ══════════════════════════════════════════════════════
-  // Daily Reading
-  // ══════════════════════════════════════════════════════
-
-  async function generateTodayReading(userData) {
-    const today    = new Date().toDateString();
-    const cacheKey = `daily_reading_${userData.name}_${today}`;
-    const cached   = localStorage.getItem(cacheKey);
-
-    if (cached) {
-      await showTyping(800);
-      addMessage(JSON.parse(cached).today, 'nora');
-      await showTyping(600);
-      await showDeeperOptions();
-      return;
-    }
-
-    await showTyping(1000);
-    addMessage("Let me see what's shifting in your chart today...", 'nora');
-
-    let element = 'Unknown', pillars = null;
-    try {
-      const sr = localStorage.getItem('nora_saju_results');
-      if (sr) {
-        const d = JSON.parse(sr);
-        element = d.pillars?.day?.tg || 'Unknown';
-        pillars = d.pillars;
-      }
-      if (!pillars && userData?.birthday) {
-        const kd = convertToKST(userData);
-        pillars = kd.pillars;
-        element = pillars?.day?.tg || 'Unknown';
-      }
-    } catch {}
-
-    typing.style.display = 'flex';
-    try {
-      const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 15000);
-      const response = await fetch(WEBHOOK_URL, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'daily_reading', date: new Date().toISOString().split('T')[0], name: userData.name, element, pillars }),
-        signal: ctrl.signal
-      });
-      clearTimeout(tid);
-      typing.style.display = 'none';
-
-      if (response.ok) {
-        const result = await response.json();
-        let todayReading;
-        if (Array.isArray(result) && result[0]?.text) todayReading = JSON.parse(result[0].text);
-        else if (result.today) todayReading = result;
-        else if (result.data)  todayReading = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
-        else todayReading = result;
-
-        localStorage.setItem(cacheKey, JSON.stringify(todayReading));
-        await showTyping(800);
-        addMessage(todayReading.today || "Today brings new energy to your path.", 'nora');
-        await showTyping(600);
-        await showDeeperOptions();
-      }
-    } catch(e) {
-      typing.style.display = 'none';
-      await showTyping(600);
-      addMessage("Something's blocking the reading today. Want to go deeper instead?", 'nora');
-      await showDeeperOptions();
-    }
-  }
-
-  async function showDeeperOptions() {
-    await showTyping(700);
-    addMessage("Want to go deeper?", 'nora');
-    await showTyping(500);
-    addMessage(`Pick one area for $${PRICES.sector}, or get the full reading for $${PRICES.full_reading}.`, 'nora');
-
-    hideAllInputs();
-    choices.innerHTML = '';
-
-    ['Love','Money','Work','Energy'].forEach(cat => {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-      btn.textContent = cat;
-      btn.onclick = async () => {
-        addMessage(cat, 'user');
-        hideAllInputs();
-        await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
-      };
-      choices.appendChild(btn);
-    });
-
-    const fullBtn = document.createElement('button');
-    fullBtn.className = 'choice-btn';
-    fullBtn.textContent = 'Get full reading';
-    fullBtn.style.cssText = `
-      background: linear-gradient(135deg, rgba(201,169,233,0.25) 0%, rgba(232,180,211,0.25) 100%);
-      border: 1px solid rgba(201,169,233,0.4); width:100%; margin-top:4px;
-    `;
-    fullBtn.onclick = async () => {
-      addMessage('Get full reading', 'user');
-      hideAllInputs();
-      
-      await showTyping(700);
-      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why it's hard to break, and one thing I can't say here.", 'nora');
-      await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
-    };
-    choices.appendChild(fullBtn);
-
-    choices.classList.add('show');
-    inputArea.classList.add('show');
-    scrollToBottom();
-  }
-
-  // ══════════════════════════════════════════════════════
-  // 메모리
-  // ══════════════════════════════════════════════════════
-
-  function getConversationMemory() {
-    try { return JSON.parse(localStorage.getItem('nora_conversation_memory') || 'null'); } catch { return null; }
-  }
-
-  function convertToKSTLegacy(userData) { return convertToKST(userData); }
-
-  // ══════════════════════════════════════════════════════
-  // 초기화
-  // ══════════════════════════════════════════════════════
-
+  // ── 상태바 / 비디오 ────────────────────────────────────
   function updateStatusTime() {
-    const now = new Date();
-    const el  = document.getElementById('statusTime');
-    if (el) el.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const el = document.getElementById('statusTime');
+    if (el) { const now = new Date(); el.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`; }
   }
   updateStatusTime();
   setInterval(updateStatusTime, 60000);
 
-  // 비디오/아바타 에러 핸들링
-  const heroVideo      = document.getElementById('heroVideo');
-  const heroPlaceholder= document.getElementById('heroPlaceholder');
-  const avatarImg      = document.getElementById('avatarImg');
-  const avatarPlaceholder = document.getElementById('avatarPlaceholder');
-
+  const heroVideo = document.getElementById('heroVideo');
+  const heroPlaceholder = document.getElementById('heroPlaceholder');
   if (heroVideo) {
     heroVideo.addEventListener('loadeddata', () => { if(heroPlaceholder) heroPlaceholder.style.display='none'; });
     heroVideo.addEventListener('error',      () => { if(heroPlaceholder) heroPlaceholder.style.display='flex'; });
   }
-  if (avatarImg) {
-    avatarImg.addEventListener('load',  () => { avatarImg.style.display='block'; if(avatarPlaceholder) avatarPlaceholder.style.display='none'; });
-    avatarImg.addEventListener('error', () => { if(avatarPlaceholder) avatarPlaceholder.style.display='flex'; });
-  }
 
-  console.log('✅ Nora app initialized');
+  console.log('✅ Nora v4 initialized');
 })();
