@@ -379,13 +379,18 @@
       showChoices(['Yeah, I have a question', 'Not really, just curious'], async (choice) => {
         userData.user_intent = choice.includes('question') ? 'question' : 'curious';
         if (userData.user_intent === 'question') {
+          // ✅ 질문 먼저 받고 채팅 — 그 다음에 사주로 자연스럽게 유도
           await showTyping(700);
-          addMessage("I'd love to help. First, I need your birth info — saju reads your energy from the exact moment you were born.", 'nora');
+          addMessage("What's on your mind?", 'nora');
+          showTextInput('Ask anything...', async (question) => {
+            userData.pendingQuestion = question;
+            await handlePreSajuChat(question);
+          });
         } else {
           await showTyping(700);
           addMessage("Let's start with today. Give me your birth info and I'll show you what your chart looks like right now.", 'nora');
+          await collectBirthday();
         }
-        await collectBirthday();
       });
     });
   }
@@ -416,15 +421,17 @@
       if (choice === "Yes — I'll pick it") {
         showStateDropdown(async (stateCode) => {
           userData.state = stateCode;
+          userData.stateConfirmed = true; // 직접 선택한 경우
           userData.timezone = STATE_TIMEZONE[stateCode] || 'America/New_York';
           userData.timezone_short = STATE_SHORT[stateCode] || 'EST';
           addMessage(US_STATES.find(s=>s.code===stateCode)?.name||stateCode, 'user');
           await collectBirthTime();
         });
       } else {
-        // ✅ 브라우저 timezone 자동 감지
+        // 브라우저 timezone 자동 감지 — 확인 문장에서 숨김
         const detected = detectTimezoneFromBrowser();
         userData.state = detected.state;
+        userData.stateConfirmed = false; // 자동 감지 = 확인 문장에서 숨김
         userData.timezone = detected.timezone;
         userData.timezone_short = detected.timezone_short;
         await showTyping(500);
@@ -470,8 +477,14 @@
       const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
       return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
     })();
-    const stateName = userData.state ? `, ${US_STATES.find(s=>s.code===userData.state)?.name||userData.state}` : '';
-    addMessage(`Got it — ${prettyDate}${stateName}, ${timeStr}. That right?`, 'nora');
+    // state: 직접 선택한 경우만 표시 (자동 감지 = stateAutoDetected면 숨김)
+    const stateName = (userData.state && userData.stateConfirmed) ? `, ${US_STATES.find(s=>s.code===userData.state)?.name||userData.state}` : '';
+    // 생일만 / 생일+state / 생일+시간 / 생일+state+시간 조합
+    const confirmParts = [prettyDate, stateName, timeStr === 'time unknown' ? '' : timeStr].filter(Boolean);
+    const confirmMsg = timeStr === 'time unknown' && !stateName
+      ? `Got it — ${prettyDate}. That right?`
+      : `Got it — ${prettyDate}${stateName}${timeStr === 'time unknown' ? '' : ', ' + timeStr}. That right?`;
+    addMessage(confirmMsg, 'nora');
     showChoices(['Yes', 'Fix it'], async (choice) => {
       if (choice === 'Yes') {
         userData.birthday_confirmed = true;
@@ -526,19 +539,32 @@
     addMessage(sajuResults.bubbles.identity, 'nora');
 
     if (userData.user_intent === 'question') {
-      // ✅ 질문 받기
-      await showTyping(700);
-      addMessage("Now — what's your question?", 'nora');
-      showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
+      // 사주 읽은 후 — pendingQuestion이 있으면 바로 사용, 없으면 다시 물어보기
+      if (userData.pendingQuestion) {
+        await handleFreeQA(userData.pendingQuestion);
+        userData.pendingQuestion = null;
+      } else {
+        await showTyping(700);
+        addMessage("Now — what's your question?", 'nora');
+        showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
+      }
     } else {
       await showTyping(700);
       addMessage("How did that land?", 'nora');
       showChoices(["That's exactly it", 'Somewhat', 'Not really me'], async (reaction) => {
         userData.reaction = reaction;
         await showTyping(600);
-        if (reaction === 'Not really me') addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
-        else addMessage("I thought so. There's more.", 'nora');
-        await showMainOptions(false);
+        if (reaction === 'Not really me') {
+          addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
+          await showMainOptions(false);
+        } else {
+          addMessage("I thought so.", 'nora');
+          await showTyping(700);
+          addMessage("There's more. Is there something specific you want to understand — about love, money, work, or just your energy right now?", 'nora');
+          await showTyping(600);
+          addMessage("If you want, I can read one area in detail. It tells you things the overview can't.", 'nora');
+          await showMainOptions(false);
+        }
       });
     }
   }
@@ -547,7 +573,56 @@
   // Q&A 플로우
   // ══════════════════════════════════════════════════════
 
-  async function handleFreeQA(question) {
+  // ── 사주 전 채팅 — 새 유저 question 플로우 ──────────────
+  async function handlePreSajuChat(question) {
+    // Make.com chat webhook으로 바로 반응 (사주 없이)
+    typing.style.display = 'flex';
+    try {
+      const response = await fetch(CHAT_WEBHOOK_URL, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          type: 'qa_presaju',
+          user_input: question,
+          user_name: userData.name,
+          element: 'Unknown' // 아직 사주 없음
+        })
+      });
+      typing.style.display = 'none';
+      if (response.ok) {
+        const result = await response.json();
+        const answer = result.response || result.answer || "That's a heavy one.";
+        await showTyping(900);
+        addMessage(answer, 'nora');
+      }
+    } catch(e) {
+      typing.style.display = 'none';
+      await showTyping(700);
+      addMessage("That's a lot to carry.", 'nora');
+    }
+
+    // 핑퐁 1번
+    await showTyping(700);
+    addMessage("Does that help at all?", 'nora');
+    showTextInput('Tell me what you think...', async (userResponse) => {
+      await showTyping(700);
+      addMessage("I hear you.", 'nora');
+      await showTyping(900);
+      addMessage("You know what — I think your chart would actually give you a clearer answer on this. Saju reads the energy behind situations like this, not just the surface. Want me to take a look?", 'nora');
+      await showTyping(600);
+      showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
+        if (c === "Yeah, let's do it") {
+          await showTyping(600);
+          addMessage("Saju uses the exact moment you were born to map your energy. I need your birth info.", 'nora');
+          await collectBirthday();
+        } else {
+          await showTyping(500);
+          addMessage("Fair enough. Come back when you're ready.", 'nora');
+        }
+      });
+    }, true);
+  }
+
+    async function handleFreeQA(question) {
     markFreeQAUsed();
     typing.style.display = 'flex';
     try {
@@ -571,44 +646,99 @@
       }
     } catch(e) { typing.style.display = 'none'; }
 
-    // ✅ 핑퐁 1번 — 사용자 반응 받기
+    // 핑퐁 1번 — 사용자 반응 받기
     await showTyping(700);
-    addMessage("Does that resonate?", 'nora');
+    addMessage("Does that help at all?", 'nora');
     showTextInput('Tell me what you think...', async (userResponse) => {
       await showTyping(700);
+      // 사용자 반응에 따라 자연스럽게 사주로 유도
       addMessage("I hear you.", 'nora');
       await showTyping(900);
-      addMessage("Reading your chart is actually my job — so I should mention, going deeper does come with a small fee. In Korean tradition, 복채 — paying the fortune teller — is what seals the good energy in. 😌", 'nora');
-      await showTyping(700);
-      addMessage("Want to explore a specific area?", 'nora');
-      await showMainOptions(false);
+      addMessage("You know what — I think your chart would actually give you a clearer answer on this. Saju reads the energy behind situations like this, not just the surface. Want me to take a look?", 'nora');
+      await showTyping(600);
+      showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
+        if (c === "Yeah, let's do it") {
+          await showTyping(600);
+          addMessage("Saju uses the exact moment you were born to map your energy. I need your birth info for that.", 'nora');
+          await collectBirthday();
+        } else {
+          await showTyping(500);
+          addMessage("Fair enough. Come back when you're ready.", 'nora');
+        }
+      });
     }, true);
   }
 
   async function initiateQAPayment(question) {
     markPaidQAUsed();
-    showPayPalButtonInline(PRICES.qa, async () => {
-      typing.style.display = 'flex';
-      try {
-        const response = await fetch(CHAT_WEBHOOK_URL, {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            type: 'qa_paid', user_input: question, user_name: userData.name,
-            element: sajuResults?.pillars?.day?.tg || 'Unknown',
-            bubble_identity: sajuResults?.bubbles?.identity || '',
-            missing_element: sajuResults?.bubbles?.missing_element || ''
-          })
-        });
-        typing.style.display = 'none';
-        if (response.ok) {
-          const result = await response.json();
-          const answer = result.response || result.answer || "Let me think about that.";
-          await showTyping(900);
-          addMessage("Good question.", 'nora');
-          await showTyping(800);
-          addMessage(answer, 'nora');
+    // ✅ 먼저 teaser 한 문장 보여주고 → PayPal
+    typing.style.display = 'flex';
+    let teaserAnswer = null;
+    try {
+      const response = await fetch(CHAT_WEBHOOK_URL, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          type: 'qa_paid_teaser',
+          user_input: question,
+          user_name: userData.name,
+          element: sajuResults?.pillars?.day?.tg || 'Unknown',
+          bubble_identity: sajuResults?.bubbles?.identity || '',
+          missing_element: sajuResults?.bubbles?.missing_element || '',
+          instruction: 'Return JSON: {"teaser": "one shocking/uncanny sentence that hooks them", "full": "the complete answer"}'
+        })
+      });
+      typing.style.display = 'none';
+      if (response.ok) {
+        const result = await response.json();
+        // teaser + full 분리 시도
+        try {
+          const parsed = typeof result.response === 'string' ? JSON.parse(result.response) : result;
+          teaserAnswer = { teaser: parsed.teaser || result.teaser, full: parsed.full || result.full };
+        } catch {
+          // fallback: 첫 문장만 teaser로
+          const fullText = result.response || result.answer || '';
+          const sentences = fullText.split(/(?<=[.!?])\s+/);
+          teaserAnswer = { teaser: sentences[0] || fullText, full: fullText };
         }
-      } catch(e) { typing.style.display = 'none'; }
+      }
+    } catch(e) { typing.style.display = 'none'; }
+
+    if (teaserAnswer?.teaser) {
+      await showTyping(900);
+      addMessage(teaserAnswer.teaser, 'nora');
+      await showTyping(700);
+      addMessage("There's more — but that part comes with a small fee.", 'nora');
+    } else {
+      await showTyping(700);
+      addMessage("I can see something here — but the full answer requires a little 복채 first.", 'nora');
+    }
+
+    // PayPal 버튼
+    showPayPalButtonInline(PRICES.qa, async () => {
+      if (teaserAnswer?.full) {
+        await showTyping(800);
+        addMessage(teaserAnswer.full, 'nora');
+      } else {
+        // full 없으면 다시 호출
+        typing.style.display = 'flex';
+        try {
+          const response = await fetch(CHAT_WEBHOOK_URL, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+              type: 'qa_paid', user_input: question, user_name: userData.name,
+              element: sajuResults?.pillars?.day?.tg || 'Unknown',
+              bubble_identity: sajuResults?.bubbles?.identity || '',
+              missing_element: sajuResults?.bubbles?.missing_element || ''
+            })
+          });
+          typing.style.display = 'none';
+          if (response.ok) {
+            const result = await response.json();
+            const answer = result.response || result.answer || '';
+            if (answer) { await showTyping(800); addMessage(answer, 'nora'); }
+          }
+        } catch(e) { typing.style.display = 'none'; }
+      }
       await showTyping(700);
       await showMainOptions(true);
     });
@@ -683,7 +813,7 @@
     ], async (choice) => {
       const cat = choice.includes('Love')?'Love':choice.includes('Money')?'Money':choice.includes('Work')?'Work':'Energy';
       await showTyping(600);
-      addMessage(`${cat} — got it. Where should I send it?`, 'nora');
+      addMessage(`${cat} — got it.`, 'nora');
       await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
     });
   }
@@ -715,7 +845,9 @@
       const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
       return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
     })();
-    addMessage(`Still ${prettyDate}, ${timeStr}?`, 'nora');
+    const savedStateName = saved.state ? US_STATES.find(s=>s.code===saved.state)?.name||saved.state : null;
+    const confirmStr = [prettyDate, savedStateName, timeStr === 'unknown' ? null : timeStr].filter(Boolean).join(', ');
+    addMessage(`Still ${confirmStr}?`, 'nora');
 
     showChoices(['Yes', 'Update it'], async (choice) => {
       if (choice === 'Update it') {
@@ -842,7 +974,7 @@
       btn.onclick = async () => {
         addMessage(cat, 'user'); hideAllInputs();
         await showTyping(600);
-        addMessage(`${cat} — got it. Where should I send it?`, 'nora');
+        addMessage(`${cat} — got it.`, 'nora');
         await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
       };
       choices.appendChild(btn);
