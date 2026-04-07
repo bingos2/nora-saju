@@ -128,13 +128,166 @@
 
   let conversationStarted = false;
   let sajuResults = null;
+  let chatConversationCount = 0; // 대화 핑퐁 카운터
   let userData = {
     name: '', birthday: '', birthday_confirmed: false,
     state: '', timezone: '', timezone_short: '',
     birth_time: 'unknown', reaction: '', user_intent: ''
   };
 
-  // ── 선택지와 타이핑 동시 표시 ───────────────────────────
+  // ══════════════════════════════════════════════════════
+  // INTENT DETECTION — 타이핑 입력 처리 핵심 함수
+  // ══════════════════════════════════════════════════════
+
+  async function handleIntentMessage(userInput) {
+    chatConversationCount++;
+    typing.style.display = 'flex';
+
+    try {
+      const response = await fetch(CHAT_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          type: 'intent_detect',
+          user_input: userInput,
+          user_name: userData.name || '',
+          element: sajuResults?.pillars?.day?.tg || 'Unknown',
+          has_saju: !!sajuResults,
+          bubble_identity: sajuResults?.bubbles?.identity || '',
+          missing_element: sajuResults?.bubbles?.missing_element || '',
+          conversation_count: chatConversationCount
+        })
+      });
+      typing.style.display = 'none';
+
+      if (!response.ok) throw new Error('intent detect failed');
+      const result = await response.json();
+
+      // JSON 파싱 시도 (Route 1 반환값)
+      let parsed;
+      try {
+        parsed = typeof result.response === 'string' ? JSON.parse(result.response) : result;
+        if (!parsed.intent) parsed = result; // fallback
+      } catch {
+        parsed = result;
+      }
+
+      const intent = parsed.intent || 'chat';
+      const noraReply = parsed.response || '';
+      const followAction = parsed.follow_action || 'none';
+
+      // Nora 대사 먼저 출력
+      if (noraReply) {
+        await showTyping(700);
+        addMessage(noraReply, 'nora');
+      }
+
+      // intent별 플로우 실행
+      await executeIntent(intent, followAction, userInput);
+
+    } catch(e) {
+      typing.style.display = 'none';
+      console.error('Intent detect error:', e);
+      // fallback — chat으로 처리
+      await showTyping(600);
+      addMessage("Something's not connecting. Try again?", 'nora');
+      showPersistentInput();
+    }
+  }
+
+  // intent 값에 따라 다음 플로우 실행
+  async function executeIntent(intent, followAction, originalInput) {
+    await new Promise(r => setTimeout(r, 400)); // 짧은 딜레이
+
+    switch(intent) {
+
+      case 'saju_flow':
+        if (userData.birthday_confirmed) {
+          // 이미 생년월일 있으면 바로 메인 옵션
+          await showMainOptions(false);
+        } else {
+          await showTyping(500);
+          addMessage("I need your birth info.", 'nora');
+          await collectBirthday();
+        }
+        break;
+
+      case 'payment':
+        await showMainOptions(false);
+        break;
+
+      case 'sector_love':
+        await showTyping(500);
+        addMessage("Love — got it.", 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', 'Love');
+        break;
+
+      case 'sector_money':
+        await showTyping(500);
+        addMessage("Money — got it.", 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', 'Money');
+        break;
+
+      case 'sector_work':
+        await showTyping(500);
+        addMessage("Work — got it.", 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', 'Work');
+        break;
+
+      case 'sector_energy':
+        await showTyping(500);
+        addMessage("Energy — got it.", 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', 'Energy');
+        break;
+
+      case 'full_reading':
+        await showTyping(500);
+        addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
+        await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+        break;
+
+      case 'qa':
+        if (!getFreeQAUsed() && !userData.birthday_confirmed) {
+          // 아직 사주 없는 첫 방문자 — 질문 받고 pre-saju chat
+          await handlePreSajuChat(originalInput);
+        } else if (!getPaidQAUsed()) {
+          // 유료 Q&A 플로우
+          await initiateQAPayment(originalInput);
+        } else {
+          await showTyping(500);
+          addMessage("You've used your question. Want to go deeper on a specific area?", 'nora');
+          await showMainOptions(true);
+        }
+        break;
+
+      case 'farewell':
+        // Nora 대사는 이미 위에서 출력됨 — 추가 플로우 없음
+        break;
+
+      case 'chat':
+      default:
+        // Nora 대사는 이미 출력됨
+        // conversation_count에 따라 사주 유도 타이밍 체크
+        if (chatConversationCount >= 3 && !userData.birthday_confirmed) {
+          await showTyping(800);
+          showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
+            if (c === "Yeah, let's do it") {
+              await showTyping(500);
+              addMessage("I need your birth info.", 'nora');
+              await collectBirthday();
+            } else {
+              await maybeLaterFlow(0);
+            }
+          });
+        } else {
+          // 계속 대화 가능하도록 persistent input 유지
+          showPersistentInput();
+        }
+        break;
+    }
+  }
+
+    // ── 선택지와 타이핑 동시 표시 ───────────────────────────
   function showPersistentInput() {
     // 이미 있으면 스킵
     if (document.getElementById('persistent-input')) return;
@@ -156,15 +309,8 @@
       addMessage(val, 'user');
       wrapper.remove();
       hideAllInputs();
-      // Q&A 처리
-      const paidUsed = getPaidQAUsed();
-      if (!paidUsed) {
-        await initiateQAPayment(val);
-      } else {
-        await showTyping(600);
-        addMessage("You've used your question. Want to explore a specific area instead?", 'nora');
-        await showMainOptions(true);
-      }
+      // ✅ intent detection으로 처리
+      await handleIntentMessage(val);
     };
     btn.onclick = handle;
     field.onkeypress = (e) => { if (e.key === 'Enter') handle(); };
