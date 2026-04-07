@@ -134,7 +134,69 @@
     birth_time: 'unknown', reaction: '', user_intent: ''
   };
 
-  // ── 아바타 로드 ────────────────────────────────────────
+  // ── 선택지와 타이핑 동시 표시 ───────────────────────────
+  function showPersistentInput() {
+    // 이미 있으면 스킵
+    if (document.getElementById('persistent-input')) return;
+    const wrapper = document.createElement('div');
+    wrapper.id = 'persistent-input';
+    wrapper.style.cssText = 'padding:6px 0 0;border-top:1px solid rgba(201,169,233,0.1);margin-top:6px;display:flex;gap:8px;';
+    const field = document.createElement('input');
+    field.type = 'text';
+    field.className = 'text-input';
+    field.placeholder = 'Or type anything...';
+    field.style.cssText = 'flex:1;font-size:13px;';
+    const btn = document.createElement('button');
+    btn.className = 'send-btn';
+    btn.textContent = 'Send';
+    btn.style.cssText = 'flex-shrink:0;';
+    const handle = async () => {
+      const val = field.value.trim();
+      if (!val) return;
+      addMessage(val, 'user');
+      wrapper.remove();
+      hideAllInputs();
+      // Q&A 처리
+      const paidUsed = getPaidQAUsed();
+      if (!paidUsed) {
+        await initiateQAPayment(val);
+      } else {
+        await showTyping(600);
+        addMessage("You've used your question. Want to explore a specific area instead?", 'nora');
+        await showMainOptions(true);
+      }
+    };
+    btn.onclick = handle;
+    field.onkeypress = (e) => { if (e.key === 'Enter') handle(); };
+    wrapper.appendChild(field);
+    wrapper.appendChild(btn);
+    inputArea.appendChild(wrapper);
+  }
+
+    // ── maybe later 핑퐁 플로우 (최소 3번) ───────────────
+  async function maybeLaterFlow(count) {
+    const responses = [
+      { nora: "No rush. Is there something else on your mind right now?", choices: ["Actually, tell me more", "I'm good for now"] },
+      { nora: "Sure. Just so you know — your chart doesn't change. It'll be here.", choices: ["Okay, let's do it", "Another time"] },
+      { nora: "Got it. Take your time.", choices: null }
+    ];
+    const step = Math.min(count, responses.length - 1);
+    const r = responses[step];
+    await showTyping(600);
+    addMessage(r.nora, 'nora');
+    if (!r.choices) return; // 3번째 — 종료
+    showChoices(r.choices, async (choice) => {
+      if (choice.includes('tell me more') || choice.includes("let's do it")) {
+        await showTyping(500);
+        addMessage("I need your birth info.", 'nora');
+        await collectBirthday();
+      } else {
+        await maybeLaterFlow(count + 1);
+      }
+    });
+  }
+
+    // ── 아바타 로드 ────────────────────────────────────────
   function initAvatar() {
     const avatarImg         = document.getElementById('avatarImg');
     const avatarPlaceholder = document.getElementById('avatarPlaceholder');
@@ -173,6 +235,13 @@
     chat.scrollTop = chat.scrollHeight + 100;
     setTimeout(() => { chat.scrollTop = chat.scrollHeight + 100; }, 50);
     setTimeout(() => { chat.scrollTop = chat.scrollHeight + 100; }, 200);
+  }
+
+  // 한자 제거 — 영어 표현만 사용
+  function removeChineseChars(text) {
+    if (!text) return text;
+    // 한자 범위 제거 (CJK Unified Ideographs)
+    return text.replace(/[一-鿿㐀-䶿]+/g, '').replace(/\s{2,}/g, ' ').trim();
   }
 
   function addMessage(text, sender) {
@@ -409,7 +478,12 @@
       userData.birthday = `${values.month}/${values.day}/${values.year}`;
       const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       addMessage(`${mn[parseInt(values.month)-1]} ${parseInt(values.day)}, ${values.year}`, 'user');
-      await collectState();
+      // 수정 모드면 바로 확인, 신규면 state 수집으로
+      if (userData.birthday_confirmed) {
+        await confirmBirthData();
+      } else {
+        await collectState();
+      }
     });
   }
 
@@ -421,11 +495,16 @@
       if (choice === "Yes — I'll pick it") {
         showStateDropdown(async (stateCode) => {
           userData.state = stateCode;
-          userData.stateConfirmed = true; // 직접 선택한 경우
+          userData.stateConfirmed = true;
           userData.timezone = STATE_TIMEZONE[stateCode] || 'America/New_York';
           userData.timezone_short = STATE_SHORT[stateCode] || 'EST';
           addMessage(US_STATES.find(s=>s.code===stateCode)?.name||stateCode, 'user');
-          await collectBirthTime();
+          // 수정 모드면 바로 확인, 신규면 birth time으로
+          if (userData.birthday_confirmed) {
+            await confirmBirthData();
+          } else {
+            await collectBirthTime();
+          }
         });
       } else {
         // 브라우저 timezone 자동 감지 — 확인 문장에서 숨김
@@ -471,25 +550,25 @@
     const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const parts = userData.birthday.split('/');
     const prettyDate = `${mn[parseInt(parts[0])-1]} ${parseInt(parts[1])}, ${parts[2]}`;
-    const timeStr = userData.birth_time === 'unknown' ? 'time unknown' : (() => {
+    // birth time: 입력한 경우만 표시
+    const timeStr = userData.birth_time === 'unknown' ? null : (() => {
       const h24 = parseInt(userData.birth_time.split(':')[0]);
       const min = userData.birth_time.split(':')[1];
       const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
       return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
     })();
-    // state: 직접 선택한 경우만 표시 (자동 감지 = stateAutoDetected면 숨김)
-    const stateName = (userData.state && userData.stateConfirmed) ? `, ${US_STATES.find(s=>s.code===userData.state)?.name||userData.state}` : '';
-    // 생일만 / 생일+state / 생일+시간 / 생일+state+시간 조합
-    const confirmParts = [prettyDate, stateName, timeStr === 'time unknown' ? '' : timeStr].filter(Boolean);
-    const confirmMsg = timeStr === 'time unknown' && !stateName
-      ? `Got it — ${prettyDate}. That right?`
-      : `Got it — ${prettyDate}${stateName}${timeStr === 'time unknown' ? '' : ', ' + timeStr}. That right?`;
+    // state: 직접 선택한 경우만 표시
+    const stateName = (userData.state && userData.stateConfirmed) ? US_STATES.find(s=>s.code===userData.state)?.name||userData.state : null;
+    // 있는 것만 조합
+    const confirmParts = [prettyDate, stateName, timeStr].filter(Boolean);
+    const confirmMsg = `Got it — ${confirmParts.join(', ')}. That right?`;
     addMessage(confirmMsg, 'nora');
     showChoices(['Yes', 'Fix it'], async (choice) => {
       if (choice === 'Yes') {
         userData.birthday_confirmed = true;
         localStorage.setItem('nora_user_data', JSON.stringify({
           name: userData.name, birthday: userData.birthday, state: userData.state,
+          stateConfirmed: userData.stateConfirmed || false,
           timezone: userData.timezone, timezone_short: userData.timezone_short, birth_time: userData.birth_time
         }));
         await loadingAndReading();
@@ -536,7 +615,7 @@
 
     // Identity bubble
     await showTyping(700);
-    addMessage(sajuResults.bubbles.identity, 'nora');
+    addMessage(removeChineseChars(sajuResults.bubbles.identity), 'nora');
 
     if (userData.user_intent === 'question') {
       // 사주 읽은 후 — pendingQuestion이 있으면 바로 사용, 없으면 다시 물어보기
@@ -600,26 +679,56 @@
       addMessage("That's a lot to carry.", 'nora');
     }
 
-    // 핑퐁 1번
+    // 선택지로 반응 수집 (Fix 3)
     await showTyping(700);
-    addMessage("Does that help at all?", 'nora');
-    showTextInput('Tell me what you think...', async (userResponse) => {
-      await showTyping(700);
-      addMessage("I hear you.", 'nora');
-      await showTyping(900);
-      addMessage("You know what — I think your chart would actually give you a clearer answer on this. Saju reads the energy behind situations like this, not just the surface. Want me to take a look?", 'nora');
-      await showTyping(600);
-      showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
-        if (c === "Yeah, let's do it") {
+    addMessage("Does that resonate at all?", 'nora');
+    showChoices(['Kind of, yeah', 'Not really', 'I want to know more'], async (reaction) => {
+      if (reaction === 'I want to know more') {
+        await showTyping(700);
+        addMessage("Your chart would give you a much sharper answer. Want me to take a look?", 'nora');
+        showChoices(["Yeah, let's do it", 'Maybe later'], async (c2) => {
+          if (c2 === "Yeah, let's do it") {
+            await showTyping(500);
+            addMessage("I need your birth info for that.", 'nora');
+            await collectBirthday();
+          } else {
+            await maybeLaterFlow(0);
+          }
+        });
+      } else if (reaction === 'Kind of, yeah') {
+        await showTyping(700);
+        addMessage("There's more underneath this. Your chart traces exactly why this keeps happening.", 'nora');
+        await showTyping(500);
+        showChoices(["Tell me more", 'Maybe later'], async (c2) => {
+          if (c2 === "Tell me more") {
+            await showTyping(500);
+            addMessage("I need your birth info for that.", 'nora');
+            await collectBirthday();
+          } else {
+            await maybeLaterFlow(0);
+          }
+        });
+      } else {
+        // Not really — 핑퐁 계속 (Fix 7)
+        await showTyping(700);
+        addMessage("Fair. What were you actually hoping to hear?", 'nora');
+        showTextInput('Tell me...', async (followUp) => {
+          await showTyping(800);
+          addMessage("Got it. That's a different question than what you asked — and probably the one that matters more.", 'nora');
           await showTyping(600);
-          addMessage("Saju uses the exact moment you were born to map your energy. I need your birth info.", 'nora');
-          await collectBirthday();
-        } else {
-          await showTyping(500);
-          addMessage("Fair enough. Come back when you're ready.", 'nora');
-        }
-      });
-    }, true);
+          addMessage("Your chart would go right to the root of that. Want me to take a look?", 'nora');
+          showChoices(["Yeah, let's do it", 'Maybe later'], async (c2) => {
+            if (c2 === "Yeah, let's do it") {
+              await showTyping(500);
+              addMessage("I need your birth info.", 'nora');
+              await collectBirthday();
+            } else {
+              await maybeLaterFlow(0);
+            }
+          });
+        }, true);
+      }
+    });
   }
 
     async function handleFreeQA(question) {
@@ -646,27 +755,30 @@
       }
     } catch(e) { typing.style.display = 'none'; }
 
-    // 핑퐁 1번 — 사용자 반응 받기
+    // 선택지로 반응 수집
     await showTyping(700);
-    addMessage("Does that help at all?", 'nora');
-    showTextInput('Tell me what you think...', async (userResponse) => {
-      await showTyping(700);
-      // 사용자 반응에 따라 자연스럽게 사주로 유도
-      addMessage("I hear you.", 'nora');
-      await showTyping(900);
-      addMessage("You know what — I think your chart would actually give you a clearer answer on this. Saju reads the energy behind situations like this, not just the surface. Want me to take a look?", 'nora');
-      await showTyping(600);
-      showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
-        if (c === "Yeah, let's do it") {
+    addMessage("Does that resonate?", 'nora');
+    showChoices(['Yes, it does', 'Somewhat', 'Not really'], async (reaction) => {
+      if (reaction === 'Not really') {
+        await showTyping(700);
+        addMessage("What were you hoping to hear?", 'nora');
+        showTextInput('Tell me...', async (followUp) => {
+          await showTyping(800);
+          addMessage("That's closer to the real question. Your chart goes right to the root of that.", 'nora');
           await showTyping(600);
-          addMessage("Saju uses the exact moment you were born to map your energy. I need your birth info for that.", 'nora');
-          await collectBirthday();
+          await showMainOptions(true);
+        }, true);
+      } else {
+        await showTyping(700);
+        if (reaction === 'Yes, it does') {
+          addMessage("Good. There's more underneath this.", 'nora');
         } else {
-          await showTyping(500);
-          addMessage("Fair enough. Come back when you're ready.", 'nora');
+          addMessage("The full answer is in your chart.", 'nora');
         }
-      });
-    }, true);
+        await showTyping(600);
+        await showMainOptions(true);
+      }
+    });
   }
 
   async function initiateQAPayment(question) {
@@ -710,7 +822,7 @@
       addMessage("There's more — but that part comes with a small fee.", 'nora');
     } else {
       await showTyping(700);
-      addMessage("I can see something here — but the full answer requires a little 복채 first.", 'nora');
+      addMessage("I can see something here — but getting the full answer is like bokchae in Korean tradition: you pay the fortune teller, and that's what activates the reading.", 'nora');
     }
 
     // PayPal 버튼
@@ -799,23 +911,55 @@
 
     choices.classList.add('show');
     inputArea.classList.add('show');
+    showPersistentInput();
     scrollToBottom();
   }
 
   async function showSectorSelection() {
     await showTyping(600);
     addMessage("Four areas. Pick one.", 'nora');
-    showChoices([
-      `❤️ Love — your patterns, your blindspots, and when that changes`,
-      `💰 Money — why money flows the way it does, and when it shifts`,
-      `💼 Work — where your energy is wasted and where it compounds`,
-      `⚡ Energy — your body, your rhythm, and what drains you`
-    ], async (choice) => {
-      const cat = choice.includes('Love')?'Love':choice.includes('Money')?'Money':choice.includes('Work')?'Work':'Energy';
-      await showTyping(600);
-      addMessage(`${cat} — got it.`, 'nora');
-      await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
+
+    hideAllInputs();
+    choices.innerHTML = '';
+
+    // 섹터 버튼 4개 — 설명 축약
+    const sectors = [
+      { label: `❤️ Love — $${PRICES.sector}`, cat: 'Love' },
+      { label: `💰 Money — $${PRICES.sector}`, cat: 'Money' },
+      { label: `💼 Work — $${PRICES.sector}`, cat: 'Work' },
+      { label: `⚡ Energy — $${PRICES.sector}`, cat: 'Energy' },
+    ];
+    sectors.forEach(({ label, cat }) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = label;
+      btn.onclick = async () => {
+        addMessage(cat, 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage(`${cat} — got it.`, 'nora');
+        await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
+      };
+      choices.appendChild(btn);
     });
+
+    // Full reading 버튼
+    const fullBtn = document.createElement('button');
+    fullBtn.className = 'choice-btn';
+    fullBtn.textContent = `Or give me everything — $${PRICES.full_reading}`;
+    fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.2),rgba(232,180,211,0.2));border:1px solid rgba(201,169,233,0.35);font-size:13px;`;
+    fullBtn.onclick = async () => {
+      addMessage('Give me everything', 'user'); hideAllInputs();
+      await showTyping(700);
+      addMessage("Your full reading covers all four areas, the pattern underneath all of it — and one thing I can't say here.", 'nora');
+      await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+    };
+    choices.appendChild(fullBtn);
+
+    choices.classList.add('show');
+    inputArea.classList.add('show');
+    // Fix 14: 타이핑도 항상 가능
+    showPersistentInput();
+    scrollToBottom();
   }
 
   // ══════════════════════════════════════════════════════
@@ -825,7 +969,8 @@
   async function returningUserFlow() {
     const saved = JSON.parse(localStorage.getItem('nora_user_data')||'{}');
     userData.name = saved.name||''; userData.birthday = saved.birthday||'';
-    userData.state = saved.state||''; userData.timezone = saved.timezone||'America/New_York';
+    userData.state = saved.state||''; userData.stateConfirmed = saved.stateConfirmed||false;
+    userData.timezone = saved.timezone||'America/New_York';
     userData.timezone_short = saved.timezone_short||'EST'; userData.birth_time = saved.birth_time||'unknown';
     userData.birthday_confirmed = true;
     const sr = localStorage.getItem('nora_saju_results');
@@ -839,15 +984,16 @@
     const mn = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const parts = saved.birthday.split('/');
     const prettyDate = `${mn[parseInt(parts[0])-1]} ${parseInt(parts[1])}, ${parts[2]}`;
-    const timeStr = saved.birth_time === 'unknown' ? 'time unknown' : (() => {
+    const timeStr = saved.birth_time === 'unknown' ? null : (() => {
       const h24 = parseInt(saved.birth_time.split(':')[0]);
       const min = saved.birth_time.split(':')[1];
       const h12 = h24 === 0 ? 12 : h24 > 12 ? h24-12 : h24;
       return `${h12}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`;
     })();
-    const savedStateName = saved.state ? US_STATES.find(s=>s.code===saved.state)?.name||saved.state : null;
-    const confirmStr = [prettyDate, savedStateName, timeStr === 'unknown' ? null : timeStr].filter(Boolean).join(', ');
-    addMessage(`Still ${confirmStr}?`, 'nora');
+    // state: 저장된 state가 있고 stateConfirmed인 경우만 표시
+    const savedStateName = (saved.state && saved.stateConfirmed) ? US_STATES.find(s=>s.code===saved.state)?.name||saved.state : null;
+    const confirmParts = [prettyDate, savedStateName, timeStr].filter(Boolean);
+    addMessage(`Still ${confirmParts.join(', ')}?`, 'nora');
 
     showChoices(['Yes', 'Update it'], async (choice) => {
       if (choice === 'Update it') {
@@ -992,6 +1138,7 @@
     choices.appendChild(fullBtn);
     choices.classList.add('show');
     inputArea.classList.add('show');
+    showPersistentInput();
     scrollToBottom();
   }
 
