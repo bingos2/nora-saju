@@ -51,10 +51,15 @@
   function markLoveSectorPurchased()   { localStorage.setItem('nora_purchased_love', 'true'); }
   function hasFullReadingPurchase()    { return localStorage.getItem('nora_purchased_full') === 'true'; }
   function getCompatibilityPrice()     { return hasFullReadingPurchase() ? PRICES.compatibility_full : PRICES.compatibility; }
-  function getFreeQAUsed()             { return localStorage.getItem('nora_free_qa_used') === 'true'; }
-  function markFreeQAUsed()            { localStorage.setItem('nora_free_qa_used', 'true'); }
-  function getPaidQAUsed()             { return localStorage.getItem('nora_paid_qa_used') === 'true'; }
-  function markPaidQAUsed()            { localStorage.setItem('nora_paid_qa_used', 'true'); }
+  // Q&A — 날짜 기반 (하루 1개 무료)
+  function getTodayKey() { return new Date().toISOString().split('T')[0]; }
+  function getFreeQAUsed() {
+    const stored = localStorage.getItem('nora_free_qa_date');
+    return stored === getTodayKey();
+  }
+  function markFreeQAUsed() { localStorage.setItem('nora_free_qa_date', getTodayKey()); }
+  function getPaidQAUsed()  { return localStorage.getItem('nora_paid_qa_used') === 'true'; }
+  function markPaidQAUsed() { localStorage.setItem('nora_paid_qa_used', 'true'); }
 
   // ── US State → Timezone 매핑 ───────────────────────────
   const STATE_TIMEZONE = {
@@ -144,9 +149,12 @@
     typing.style.display = 'flex';
 
     try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 12000);
       const response = await fetch(CHAT_WEBHOOK_URL, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
+        signal: ctrl.signal,
         body: JSON.stringify({
           type: 'intent_detect',
           user_input: userInput,
@@ -160,6 +168,7 @@
       });
       typing.style.display = 'none';
 
+      clearTimeout(tid);
       if (!response.ok) throw new Error('intent detect failed');
       const result = await response.json();
 
@@ -705,9 +714,18 @@
     })();
     // state: 직접 선택한 경우만 표시
     const stateName = (userData.state && userData.stateConfirmed) ? US_STATES.find(s=>s.code===userData.state)?.name||userData.state : null;
-    // 있는 것만 조합
-    const confirmParts = [prettyDate, stateName, timeStr].filter(Boolean);
-    const confirmMsg = `Got it — ${confirmParts.join(', ')}. That right?`;
+    // 있는 것만 조합 + 없는 것 설명
+    const confirmParts = [prettyDate];
+    if (stateName) confirmParts.push(stateName);
+    else if (!userData.stateConfirmed) {} // 생략 — state 모름은 조용히 처리
+    if (timeStr) confirmParts.push(timeStr);
+    
+    let confirmMsg = `Got it — ${confirmParts.join(', ')}.`;
+    const notes = [];
+    if (!userData.stateConfirmed) notes.push("state unknown — I'll estimate from your location");
+    if (!timeStr) notes.push("birth time unknown");
+    if (notes.length) confirmMsg += ` (${notes.join(', ')})`;
+    confirmMsg += " That right?";
     addMessage(confirmMsg, 'nora');
     showChoices(['Yes', 'Fix it'], async (choice) => {
       if (choice === 'Yes') {
@@ -719,15 +737,20 @@
         }));
         await loadingAndReading();
       } else {
-        // ✅ 수정 항목만 선택해서 고치기
-        await showTyping(500);
-        addMessage("What would you like to fix?", 'nora');
-        showChoices(['Birthday', 'Birth time', 'State'], async (fixChoice) => {
-          if (fixChoice === 'Birthday')         await collectBirthday();
-          else if (fixChoice === 'Birth time')  await collectBirthTime();
-          else                                  await collectState();
-        });
+        await showFixMenu();
       }
+    });
+  }
+
+  // 수정 메뉴 — 항목 선택 → 수정 → 재확인 루프
+  async function showFixMenu() {
+    await showTyping(500);
+    addMessage("What would you like to fix?", 'nora');
+    showChoices(['Birthday', 'Birth time', 'State'], async (fixChoice) => {
+      if (fixChoice === 'Birthday')        await collectBirthday();
+      else if (fixChoice === 'Birth time') await collectBirthTime();
+      else                                 await collectState();
+      // 각 collect 함수 내부에서 birthday_confirmed=true면 confirmBirthData로 점프
     });
   }
 
@@ -1002,47 +1025,19 @@
     });
   }
 
-  // ── 메인 옵션 ──────────────────────────────────────────
+  // ── 메인 옵션 — sector | full reading | another question ──
   async function showMainOptions(hasAskedQuestion) {
     hideAllInputs();
     choices.innerHTML = '';
 
-    if (!hasAskedQuestion) {
-      const freeUsed = getFreeQAUsed();
-      const paidUsed = getPaidQAUsed();
-      if (!freeUsed) {
-        // 무료 Q&A 버튼 (curious 선택한 신규 유저용)
-        const qaBtn = document.createElement('button');
-        qaBtn.className = 'choice-btn';
-        qaBtn.textContent = 'Ask a question — free';
-        qaBtn.onclick = async () => {
-          addMessage('Ask a question', 'user'); hideAllInputs();
-          await showTyping(600);
-          addMessage("What do you want to know?", 'nora');
-          showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
-        };
-        choices.appendChild(qaBtn);
-      } else if (!paidUsed) {
-        // 유료 Q&A 버튼
-        const qaBtn = document.createElement('button');
-        qaBtn.className = 'choice-btn';
-        qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
-        qaBtn.onclick = async () => {
-          addMessage(`Ask another question`, 'user'); hideAllInputs();
-          await showTyping(600);
-          addMessage("What do you want to know?", 'nora');
-          showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
-        };
-        choices.appendChild(qaBtn);
-      }
-    }
-
+    // 1. Show me a specific area (sector)
     const sectorBtn = document.createElement('button');
     sectorBtn.className = 'choice-btn';
     sectorBtn.textContent = `Show me a specific area — $${PRICES.sector}`;
     sectorBtn.onclick = async () => { addMessage('Show me a specific area', 'user'); hideAllInputs(); await showSectorSelection(); };
     choices.appendChild(sectorBtn);
 
+    // 2. Full reading
     const fullBtn = document.createElement('button');
     fullBtn.className = 'choice-btn';
     fullBtn.textContent = `Give me everything — $${PRICES.full_reading}`;
@@ -1054,6 +1049,38 @@
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
+
+    // 3. Ask a question
+    const freeUsed = getFreeQAUsed();
+    const qaBtn = document.createElement('button');
+    qaBtn.className = 'choice-btn';
+    qaBtn.textContent = freeUsed ? `Ask a question — $${PRICES.qa}` : 'Ask a question — free';
+    qaBtn.onclick = async () => {
+      addMessage(qaBtn.textContent, 'user'); hideAllInputs();
+      if (!freeUsed) {
+        // 무료
+        await showTyping(600);
+        addMessage("What do you want to know?", 'nora');
+        showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
+      } else {
+        // 이미 오늘 사용 → 유료 유도
+        await showTyping(600);
+        addMessage("You've had your free question for today.", 'nora');
+        await showTyping(700);
+        addMessage("Come back tomorrow for another free one — or if it can't wait, I can answer it now.", 'nora');
+        showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
+          if (choice.includes('Answer it now')) {
+            await showTyping(500);
+            addMessage("What do you want to know?", 'nora');
+            showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+          } else {
+            await showTyping(500);
+            addMessage("I'll be here.", 'nora');
+          }
+        });
+      }
+    };
+    choices.appendChild(qaBtn);
 
     choices.classList.add('show');
     inputArea.classList.add('show');
@@ -1080,7 +1107,10 @@
       btn.className = 'choice-btn';
       btn.textContent = label;
       btn.onclick = async () => {
-        addMessage(cat, 'user'); hideAllInputs();
+        addMessage(cat, 'user');
+        const pi = document.getElementById('persistent-input');
+        if (pi) pi.remove();
+        hideAllInputs();
         await showTyping(600);
         addMessage(`${cat} — got it.`, 'nora');
         await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
@@ -1143,13 +1173,7 @@
 
     showChoices(['Yes', 'Update it'], async (choice) => {
       if (choice === 'Update it') {
-        await showTyping(500);
-        addMessage("What would you like to update?", 'nora');
-        showChoices(['Birthday', 'Birth time', 'State'], async (fixChoice) => {
-          if (fixChoice === 'Birthday')         await collectBirthday();
-          else if (fixChoice === 'Birth time')  await collectBirthTime();
-          else                                  await collectState();
-        });
+        await showFixMenu();
         return;
       }
 
@@ -1264,7 +1288,10 @@
       btn.className = 'choice-btn';
       btn.textContent = `${cat} — $${PRICES.sector}`;
       btn.onclick = async () => {
-        addMessage(cat, 'user'); hideAllInputs();
+        addMessage(cat, 'user');
+        const pi = document.getElementById('persistent-input');
+        if (pi) pi.remove();
+        hideAllInputs();
         await showTyping(600);
         addMessage(`${cat} — got it.`, 'nora');
         await initiatePayment(userData, PRICES.sector, 'category_reading', cat);
@@ -1292,8 +1319,10 @@
   // 결제
   // ══════════════════════════════════════════════════════
 
-  // ✅ 이메일 입력 → Perfect → 바로 PayPal 버튼
   async function initiatePayment(ud, amount, type, category) {
+    // persistent input 제거 — 이메일 입력 중 중복 방지
+    const pi = document.getElementById('persistent-input');
+    if (pi) pi.remove();
     await showTyping(500);
     addMessage("Where should I send it? 📩", 'nora');
     const askEmail = async () => {
@@ -1422,7 +1451,7 @@
         addMessage("What's your email?", 'nora');
         showTextInput('Your email', async (email) => {
           if (email && email.includes('@')) {
-            try { await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name, element: sajuResults?.pillars?.day?.tg||'Unknown', timestamp: new Date().toISOString() }) }); } catch {}
+            try { await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name, element: sajuResults?.pillars?.day?.tg||'Unknown', missing_element: sajuResults?.bubbles?.missing_element||'', birthday: userData.birthday||'', birth_time: userData.birth_time||'', timestamp: new Date().toISOString() }) }); } catch {}
             await showTyping(500);
             addMessage("Got it. I'll be in touch.", 'nora');
           }
@@ -1453,10 +1482,10 @@
       money_today:  sajuResults?.categories?.Money?.today||'',  money_month: sajuResults?.categories?.Money?.this_month||'', money_year: sajuResults?.categories?.Money?.this_year||'',
       work_today:   sajuResults?.categories?.Work?.today||'',   work_month: sajuResults?.categories?.Work?.this_month||'',   work_year: sajuResults?.categories?.Work?.this_year||'',
       energy_today: sajuResults?.categories?.Energy?.today||'', energy_month: sajuResults?.categories?.Energy?.this_month||'', energy_year: sajuResults?.categories?.Energy?.this_year||'',
-      pillar_year_tg:  sajuResults?.pillars?.year?.tg||'',  pillar_year_dz:  sajuResults?.pillars?.year?.dz||'',
-      pillar_month_tg: sajuResults?.pillars?.month?.tg||'', pillar_month_dz: sajuResults?.pillars?.month?.dz||'',
-      pillar_day_tg:   sajuResults?.pillars?.day?.tg||'',   pillar_day_dz:   sajuResults?.pillars?.day?.dz||'',
-      pillar_hour_tg:  sajuResults?.pillars?.hour?.tg||'',  pillar_hour_dz:  sajuResults?.pillars?.hour?.dz||'',
+      pillar_year_tg_char:  sajuResults?.pillars?.year?.tg_char||'',  pillar_year_tg:  sajuResults?.pillars?.year?.tg||'',  pillar_year_dz_char:  sajuResults?.pillars?.year?.dz_char||'',  pillar_year_dz:  sajuResults?.pillars?.year?.dz||'',
+      pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char||'', pillar_month_tg: sajuResults?.pillars?.month?.tg||'', pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char||'', pillar_month_dz: sajuResults?.pillars?.month?.dz||'',
+      pillar_day_tg_char:   sajuResults?.pillars?.day?.tg_char||'',   pillar_day_tg:   sajuResults?.pillars?.day?.tg||'',   pillar_day_dz_char:   sajuResults?.pillars?.day?.dz_char||'',   pillar_day_dz:   sajuResults?.pillars?.day?.dz||'',
+      pillar_hour_tg_char:  sajuResults?.pillars?.hour?.tg_char||'',  pillar_hour_tg:  sajuResults?.pillars?.hour?.tg||'',  pillar_hour_dz_char:  sajuResults?.pillars?.hour?.dz_char||'',  pillar_hour_dz:  sajuResults?.pillars?.hour?.dz||'',
       timestamp: new Date().toISOString()
     };
   }
