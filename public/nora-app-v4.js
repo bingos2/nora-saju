@@ -276,11 +276,14 @@
       case 'chat':
       default:
         // Nora 대사는 이미 출력됨
-        // conversation_count에 따라 사주 유도 타이밍 체크
-        if (chatConversationCount >= 3 && !userData.birthday_confirmed) {
+        if (userData.birthday_confirmed && sajuResults) {
+          // 사주 있음 → 선택지 + persistent input
+          await showMainOptions(false);
+        } else if (chatConversationCount >= 3) {
+          // 3번째 대화 → 사주 유도
           await showTyping(800);
-          showChoices(["Yeah, let's do it", 'Maybe later'], async (c) => {
-            if (c === "Yeah, let's do it") {
+          showChoices(["Yeah, let\'s do it", 'Maybe later'], async (c2) => {
+            if (c2 === "Yeah, let\'s do it") {
               await showTyping(500);
               addMessage("I need your birth info.", 'nora');
               await collectBirthday();
@@ -289,7 +292,7 @@
             }
           });
         } else {
-          // 계속 대화 가능하도록 persistent input 유지
+          // 계속 대화 가능
           showPersistentInput();
         }
         break;
@@ -423,6 +426,8 @@
   }
 
   function showChoices(options, callback) {
+    const pi = document.getElementById('persistent-input');
+    if (pi) pi.remove();
     hideAllInputs();
     choices.innerHTML = '';
     options.forEach(opt => {
@@ -438,6 +443,9 @@
   }
 
   function showTextInput(placeholder, callback, optional = false) {
+    // persistent input 제거 — 중복 방지
+    const pi = document.getElementById('persistent-input');
+    if (pi) pi.remove();
     hideAllInputs();
     textField.value = '';
     textField.placeholder = placeholder;
