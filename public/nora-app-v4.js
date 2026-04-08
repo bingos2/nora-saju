@@ -1374,24 +1374,47 @@
   // ══════════════════════════════════════════════════════
 
   async function initiatePayment(ud, amount, type, category) {
-    // persistent input 제거 — 이메일 입력 중 중복 방지
     const pi = document.getElementById('persistent-input');
     if (pi) pi.remove();
-    await showTyping(500);
-    addMessage("Where should I send it? 📩", 'nora');
-    const askEmail = async () => {
+
+    const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
+
+    if (lastEmail) {
+      await showTyping(500);
+      addMessage(`Where should I send it? Last time you used ${lastEmail} — use the same one?`, 'nora');
+      showChoices(['Yes, same email', 'Use a different one'], async (choice) => {
+        if (choice === 'Yes, same email') {
+          hideAllInputs();
+          await showTyping(400);
+          addMessage("Perfect.", 'nora');
+          showPayPalButton(lastEmail, amount, type, category);
+        } else {
+          await askNewEmail(amount, type, category);
+        }
+      });
+    } else {
+      await showTyping(500);
+      addMessage("Where should I send it? 📩", 'nora');
+      await askNewEmail(amount, type, category);
+    }
+  }
+
+  async function askNewEmail(amount, type, category) {
+    const ask = async () => {
       showTextInput('Your email', async (email) => {
         if (!email || !email.includes('@')) {
           await showTyping(400); addMessage("That doesn't look right — try again?", 'nora');
-          askEmail(); return;
+          ask(); return;
         }
         hideAllInputs();
+        userData.lastEmail = email;
+        localStorage.setItem('nora_last_email', email);
         await showTyping(400);
         addMessage("Perfect.", 'nora');
         showPayPalButton(email, amount, type, category);
       }, false);
     };
-    askEmail();
+    ask();
   }
 
   function showPayPalButton(email, amount, type, category, onSuccessCallback) {
@@ -1499,25 +1522,73 @@
   async function postPurchaseFlow() {
     await showTyping(700);
     addMessage("Want me to check in with you? I send something worth reading once a week.", 'nora');
+
     showChoices(['Yes, send it', 'No thanks'], async (choice) => {
       if (choice === 'Yes, send it') {
-        await showTyping(500);
-        addMessage("What's your email?", 'nora');
-        showTextInput('Your email', async (email) => {
-          if (email && email.includes('@')) {
-            try { await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name, element: sajuResults?.pillars?.day?.tg||'Unknown', missing_element: sajuResults?.bubbles?.missing_element||'', birthday: userData.birthday||'', birth_time: userData.birth_time||'', timestamp: new Date().toISOString() }) }); } catch {}
-            await showTyping(500);
-            addMessage("Got it. I'll be in touch.", 'nora');
-          }
+        const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
+
+        const sendWeekly = async (email) => {
+          try {
+            await fetch('https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name,
+                element: sajuResults?.pillars?.day?.tg||'Unknown',
+                missing_element: sajuResults?.bubbles?.missing_element||'',
+                birthday: userData.birthday||'', birth_time: userData.birth_time||'',
+                timestamp: new Date().toISOString() })
+            });
+          } catch {}
           await showTyping(500);
-          addMessage("Take care of yourself. Your chart is watching.", 'nora');
-        }, false);
+          addMessage("Got it. I'll be in touch.", 'nora');
+          await showEndOptions();
+        };
+
+        if (lastEmail) {
+          await showTyping(400);
+          addMessage(`Send it to ${lastEmail}?`, 'nora');
+          showChoices(['Yes, that one', 'Use a different email'], async (emailChoice) => {
+            if (emailChoice === 'Yes, that one') {
+              await sendWeekly(lastEmail);
+            } else {
+              showTextInput('Your email', async (email) => {
+                if (email && email.includes('@')) {
+                  userData.lastEmail = email;
+                  localStorage.setItem('nora_last_email', email);
+                  await sendWeekly(email);
+                }
+              }, false);
+            }
+          });
+        } else {
+          showTextInput('Your email', async (email) => {
+            if (email && email.includes('@')) {
+              userData.lastEmail = email;
+              localStorage.setItem('nora_last_email', email);
+              await sendWeekly(email);
+            }
+          }, false);
+        }
       } else {
-        await showTyping(500);
-        addMessage("Take care of yourself. Your chart is watching.", 'nora');
+        await showEndOptions();
       }
     });
   }
+
+  async function showEndOptions() {
+    await showTyping(500);
+    addMessage("Take care of yourself. Your chart is watching.", 'nora');
+    await showTyping(700);
+    showChoices(['Show me today', 'Ask a question', "I'm done for now"], async (endChoice) => {
+      if (endChoice === 'Show me today') {
+        const kstData = convertToKST(userData);
+        userData = { ...userData, ...kstData };
+        await generateTodayReading(userData);
+      } else if (endChoice === 'Ask a question') {
+        await showMainOptions(false);
+      }
+    });
+  }
+
 
   function buildBasePayload(email, userElement) {
     return {
