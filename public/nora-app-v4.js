@@ -593,8 +593,54 @@
   // ══════════════════════════════════════════════════════
 
   async function startConversation() {
+    // ?compat=1 URL 파라미터 감지
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('compat') === '1') {
+      await compatEntryFlow();
+      return;
+    }
     if (isReturningUser()) { await returningUserFlow(); }
     else { await newUserFlow(); }
+  }
+
+  // ── ?compat=1 진입 플로우 ───────────────────────────────
+  async function compatEntryFlow() {
+    // localStorage에 기존 사주 데이터 있으면 바로 compatibility로
+    const savedResults = localStorage.getItem('nora_saju_results');
+    const savedUser    = localStorage.getItem('nora_user_data');
+
+    if (savedResults && savedUser) {
+      // 데이터 복원
+      try {
+        sajuResults = JSON.parse(savedResults);
+        const saved = JSON.parse(savedUser);
+        userData.name           = saved.name || '';
+        userData.birthday       = saved.birthday || '';
+        userData.state          = saved.state || '';
+        userData.stateConfirmed = saved.stateConfirmed || false;
+        userData.timezone       = saved.timezone || 'America/New_York';
+        userData.timezone_short = saved.timezone_short || 'EST';
+        userData.birth_time     = saved.birth_time || 'unknown';
+        userData.birthday_confirmed = true;
+      } catch(e) { console.error('compat data restore error:', e); }
+
+      // 환영 + 바로 compatibility 플로우
+      await showTyping(600);
+      addMessage(`Hey${userData.name ? ' ' + userData.name : ''}.`, 'nora');
+      await showTyping(700);
+      addMessage("You came back for the compatibility reading.", 'nora');
+      await showTyping(600);
+      addMessage("Give me their birthday and I'll read both charts together.", 'nora');
+      await collectCompatibilityData();
+
+    } else {
+      // 데이터 없음 — 일반 플로우로 + compatibility 유도 메시지
+      await showTyping(700);
+      addMessage("Hey. I'm Nora.", 'nora');
+      await showTyping(600);
+      addMessage("Looks like you're on a new device. I'll need your birth info first — then we can check compatibility.", 'nora');
+      await newUserFlow();
+    }
   }
 
   // ── 새 유저 — 이름 먼저 ────────────────────────────────
