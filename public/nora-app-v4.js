@@ -1243,8 +1243,10 @@
           // 재방문자 Q&A — 유료만 (무료 없음)
           if (getPaidQAUsed()) {
             await showTyping(600);
-            addMessage("You've used your question for today. Want to explore a specific area instead?", 'nora');
-            await showDeeperOptions();
+            addMessage("You've used your question for today.", 'nora');
+            await showTyping(500);
+            addMessage("Come back tomorrow for another free one — or if it can't wait:", 'nora');
+            await showMainOptions(true);
             return;
           }
           await showTyping(600);
@@ -1611,6 +1613,11 @@
       pillar_month_tg_char: sajuResults?.pillars?.month?.tg_char||'', pillar_month_tg: sajuResults?.pillars?.month?.tg||'', pillar_month_dz_char: sajuResults?.pillars?.month?.dz_char||'', pillar_month_dz: sajuResults?.pillars?.month?.dz||'',
       pillar_day_tg_char:   sajuResults?.pillars?.day?.tg_char||'',   pillar_day_tg:   sajuResults?.pillars?.day?.tg||'',   pillar_day_dz_char:   sajuResults?.pillars?.day?.dz_char||'',   pillar_day_dz:   sajuResults?.pillars?.day?.dz||'',
       pillar_hour_tg_char:  sajuResults?.pillars?.hour?.tg_char||'',  pillar_hour_tg:  sajuResults?.pillars?.hour?.tg||'',  pillar_hour_dz_char:  sajuResults?.pillars?.hour?.dz_char||'',  pillar_hour_dz:  sajuResults?.pillars?.hour?.dz||'',
+      birth_year: (() => {
+        if (!userData.birthday) return '';
+        const parts = userData.birthday.split('/');
+        return parts[2] || '';
+      })(),
       timestamp: new Date().toISOString()
     };
   }
@@ -1688,7 +1695,7 @@
           const userElement = sajuResults?.pillars?.day?.tg||'Unknown';
           try {
             await fetch(PAID_WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ type:'compatibility_reading', their_name: theirName, their_birthday: theirBirthday, their_timezone: theirTimezone, ...buildBasePayload(email, userElement) })
+              body: JSON.stringify({ type:'compatibility_reading', their_name: theirName, their_birthday: theirBirthday, their_timezone: theirTimezone, their_birth_year: theirBirthday ? theirBirthday.split('/')[2] : '', ...buildBasePayload(email, userElement) })
             });
           } catch(e) { console.error(e); }
           await showTyping(700);
