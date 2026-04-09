@@ -1104,24 +1104,31 @@
     };
     choices.appendChild(fullBtn);
 
-    // 3. Ask a question
+    // 3. Ask a question — 상태별 표시
     const freeUsed = getFreeQAUsed();
-    const qaBtn = document.createElement('button');
-    qaBtn.className = 'choice-btn';
-    qaBtn.textContent = freeUsed ? `Ask a question — $${PRICES.qa}` : 'Ask a question — free';
-    qaBtn.onclick = async () => {
-      addMessage(qaBtn.textContent, 'user'); hideAllInputs();
-      if (!freeUsed) {
-        // 무료
+    const paidUsed = getPaidQAUsed();
+
+    if (!freeUsed) {
+      // 오늘 무료 아직 안 씀
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = 'Ask a question — free';
+      qaBtn.onclick = async () => {
+        addMessage('Ask a question — free', 'user'); hideAllInputs();
         await showTyping(600);
         addMessage("What do you want to know?", 'nora');
         showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
-      } else {
-        // 이미 오늘 사용 → 유료 유도
+      };
+      choices.appendChild(qaBtn);
+    } else if (!paidUsed) {
+      // 무료 썼고 유료 아직 안 씀
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = `Ask a question — $${PRICES.qa}`;
+      qaBtn.onclick = async () => {
+        addMessage(`Ask a question — $${PRICES.qa}`, 'user'); hideAllInputs();
         await showTyping(600);
-        addMessage("You've had your free question for today.", 'nora');
-        await showTyping(700);
-        addMessage("Come back tomorrow for another free one — or if it can't wait, I can answer it now.", 'nora');
+        addMessage("Come back tomorrow for a free one — or ask now.", 'nora');
         showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
           if (choice.includes('Answer it now')) {
             await showTyping(500);
@@ -1132,9 +1139,22 @@
             addMessage("I'll be here.", 'nora');
           }
         });
-      }
-    };
-    choices.appendChild(qaBtn);
+      };
+      choices.appendChild(qaBtn);
+    }
+    else {
+      // 둘 다 썼어도 추가 질문 가능 (유료)
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
+      qaBtn.onclick = async () => {
+        addMessage(`Ask another question — $${PRICES.qa}`, 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage("What do you want to know?", 'nora');
+        showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+      };
+      choices.appendChild(qaBtn);
+    }
 
     choices.classList.add('show');
     inputArea.classList.add('show');
@@ -1240,18 +1260,47 @@
           userData = { ...userData, ...kstData };
           await generateTodayReading(userData);
         } else {
-          // 재방문자 Q&A — 유료만 (무료 없음)
-          if (getPaidQAUsed()) {
+          const freeUsed = getFreeQAUsed();
+          const paidUsed = getPaidQAUsed();
+
+          if (!freeUsed) {
+            // 오늘 무료 아직 안 씀
             await showTyping(600);
-            addMessage("You've used your question for today.", 'nora');
+            addMessage("What do you want to know?", 'nora');
+            showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
+          } else if (!paidUsed) {
+            // 무료 썼고 유료 아직 안 씀
+            await showTyping(600);
+            addMessage("You've used your free question for today.", 'nora');
             await showTyping(500);
-            addMessage("Come back tomorrow for another free one — or if it can't wait:", 'nora');
-            await showMainOptions(true);
-            return;
+            addMessage("Come back tomorrow for another free one — or answer it now.", 'nora');
+            showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
+              if (choice.includes('Answer it now')) {
+                await showTyping(500);
+                addMessage("What do you want to know?", 'nora');
+                showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+              } else {
+                await showTyping(500);
+                addMessage("I'll be here.", 'nora');
+              }
+            });
+          } else {
+            // 무료 + 유료 둘 다 씀 — 추가 유료 질문 가능
+            await showTyping(600);
+            addMessage("You've used your free question and your paid one today.", 'nora');
+            await showTyping(500);
+            addMessage("Still have something on your mind?", 'nora');
+            showChoices([`Ask another — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
+              if (choice.includes('Ask another')) {
+                await showTyping(500);
+                addMessage("What do you want to know?", 'nora');
+                showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+              } else {
+                await showTyping(500);
+                addMessage("I'll be here.", 'nora');
+              }
+            });
           }
-          await showTyping(600);
-          addMessage("What do you want to know?", 'nora');
-          showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
         }
       });
     });
@@ -1683,11 +1732,13 @@
     await showTyping(700);
     addMessage(`I can see why you're asking about ${theirName}. Your charts have a very specific dynamic — and it's not what most people would expect.`, 'nora');
     const price = getCompatibilityPrice();
-    showChoices([`Get the full compatibility reading — $${price}`], async () => {
-      await showTyping(500);
-      addMessage("Where should I send it? 📩", 'nora');
-      showTextInput('Your email', async (email) => {
-        if (!email || !email.includes('@')) { addMessage("Try that again?", 'nora'); return; }
+
+    showChoices(["Let's do it"], async () => {
+      const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
+
+      const sendCompat = async (email) => {
+        userData.lastEmail = email;
+        localStorage.setItem('nora_last_email', email);
         hideAllInputs();
         await showTyping(400);
         addMessage("Perfect.", 'nora');
@@ -1700,10 +1751,31 @@
           } catch(e) { console.error(e); }
           await showTyping(700);
           addMessage("Your compatibility reading is on its way. Check your inbox.", 'nora');
-          await showTyping(500);
-          addMessage("Take care of yourself. Your chart is watching.", 'nora');
+          await showEndOptions();
         });
-      }, false);
+      };
+
+      if (lastEmail) {
+        await showTyping(400);
+        addMessage(`Send it to ${lastEmail}?`, 'nora');
+        showChoices(['Yes, that one', 'Use a different email'], async (choice) => {
+          if (choice === 'Yes, that one') {
+            await sendCompat(lastEmail);
+          } else {
+            showTextInput('Your email', async (email) => {
+              if (!email || !email.includes('@')) { addMessage("Try that again?", 'nora'); return; }
+              await sendCompat(email);
+            }, false);
+          }
+        });
+      } else {
+        await showTyping(400);
+        addMessage("Where should I send it? 📩", 'nora');
+        showTextInput('Your email', async (email) => {
+          if (!email || !email.includes('@')) { addMessage("Try that again?", 'nora'); return; }
+          await sendCompat(email);
+        }, false);
+      }
     });
   }
 
