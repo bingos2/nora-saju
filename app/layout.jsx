@@ -77,7 +77,7 @@ export default function RootLayout({ children }) {
         </Script>
 
         <Script
-          src="https://www.paypal.com/sdk/js?client-id=Acv54hNELtTY9zMqWepJps9u-OswKrKAavR7sDuk5w0HW5yhMagTuw8IQUNssPOo1Hq0NuLM2LE8HkLH&currency=USD&intent=capture"
+          src="https://www.paypal.com/sdk/js?client-id=AQHtoUyjhNa9CsOLS4kVcsEe4no4kiQ0xBM8molUYQUW4bxC2I0Fa5aiq_9xMvDjbFCruQsF5N-GSGor&currency=USD&intent=capture"
           strategy="afterInteractive"
         />
       </body>
