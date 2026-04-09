@@ -678,9 +678,9 @@
   // ── 새 유저 — 이름 먼저 ────────────────────────────────
   async function newUserFlow() {
     await showTyping(700);
-    addMessage("People usually come here", 'nora');
-    await showTyping(600);
-    addMessage("when something feels a little off.", 'nora');
+    addMessage("I'm Nora — I read Korean saju.", 'nora');
+    await showTyping(700);
+    addMessage("People usually come here when something feels a little off.", 'nora');
     await showTyping(900);
     addMessage("You're sitting with something you can't fully explain.", 'nora');
     showChoices(["Yeah", "Not really"], async (openChoice) => {
