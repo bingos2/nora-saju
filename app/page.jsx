@@ -1,8 +1,6 @@
 'use client';
-
 import Script from 'next/script';
 import { Suspense } from 'react';
-
 function NoraApp() {
   return (
     <>
@@ -15,7 +13,6 @@ function NoraApp() {
             <span className="status-icon" id="statusBattery">98%</span>
           </div>
         </div>
-
         <div className="screen active" id="coverScreen">
           <div className="cover">
             <div className="hero">
@@ -30,7 +27,6 @@ function NoraApp() {
             <p className="footer-text">Free · Private · 3 min</p>
           </div>
         </div>
-
         <div className="screen" id="dmScreen">
           <div className="dm-header">
             <button className="back-btn" id="backBtn">←</button>
@@ -40,7 +36,6 @@ function NoraApp() {
             </div>
             <div className="dm-name">Nora</div>
           </div>
-
           <div className="chat" id="chat">
             <div className="typing" id="typing">
               <span className="typing-text">Nora is typing</span>
@@ -51,7 +46,6 @@ function NoraApp() {
               </div>
             </div>
           </div>
-
           <div className="input-area" id="inputArea">
             <div className="choices" id="choices"></div>
             <div className="category-grid" id="categoryGrid"></div>
@@ -62,7 +56,6 @@ function NoraApp() {
             <div className="dropdown-group" id="dropdowns"></div>
           </div>
         </div>
-
         <div style={{textAlign:'center',padding:'15px',opacity:0.4,fontSize:'11px',color:'#9B8E82'}}>
           Questions or Thoughts? ▶{' '}
           <a href="mailto:hi@readnora.com" style={{color:'#9B8E82',textDecoration:'none'}}>
@@ -70,14 +63,11 @@ function NoraApp() {
           </a>
         </div>
       </div>
-
       <Script id="nora-app-loader" strategy="afterInteractive">
         {`
         (function() {
         var s = document.createElement('script');
-        s.src = new URLSearchParams(window.location.search).get('v4') === '1'
-        ? '/nora-app-v4.js'
-        : '/nora-app.js';
+        s.src = '/nora-app.js';
         document.body.appendChild(s);
         })();
         `}
@@ -85,7 +75,6 @@ function NoraApp() {
     </>
   );
 }
-
 export default function Page() {
   return (
     <Suspense>
