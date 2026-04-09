@@ -1301,8 +1301,8 @@
       addMessage("What do you want to do today?", 'nora');
       // ✅ 재방문: show me today / ask a question만
       showPersistentInput();
-      showChoices(['show me today', 'Ask a question'], async (mainChoice) => {
-        if (mainChoice === 'show me today') {
+      showChoices(['Show me today', 'Ask a question'], async (mainChoice) => {
+        if (mainChoice === 'Show me today') {
           const kstData = convertToKST(userData);
           userData = { ...userData, ...kstData };
           await generateTodayReading(userData);
