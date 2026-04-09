@@ -1722,7 +1722,7 @@
     await showTyping(600);
     addMessage("You give me their birthday — and state if you have it. I read both charts together. Where your energies sync, where they don't, and when things shift between you.", 'nora');
     const price = getCompatibilityPrice();
-    showChoices([`Let's do it — $${price}`, 'Maybe later'], async (choice) => {
+    showChoices([`Let's do it`, 'Maybe later'], async (choice) => {
       if (choice.includes("do it")) await collectCompatibilityData();
       else await postPurchaseFlow();
     });
