@@ -536,7 +536,24 @@
     scrollToBottom();
   }
 
-  // ── 재방문 감지 ────────────────────────────────────────
+  // ── Start Over / 타이핑 유지 ─────────────────────────────
+  function showStartOverInput() {
+    // persistent input만 표시 — 유저가 직접 타이핑으로 다음 행동 결정
+    showPersistentInput();
+  }
+
+  async function showStartOverOption() {
+    await showTyping(500);
+    showChoices(['Start over', 'I\'m done'], async (choice) => {
+      if (choice === 'Start over') {
+        // 채팅 내용 유지하고 메인 옵션으로
+        await showMainOptions(false);
+      }
+      // I'm done — 종료
+    });
+  }
+
+    // ── 재방문 감지 ────────────────────────────────────────
   function isReturningUser() {
     try { const d = JSON.parse(localStorage.getItem('nora_user_data')||'{}'); return !!(d.name && d.birthday); }
     catch { return false; }
@@ -1137,6 +1154,7 @@
           } else {
             await showTyping(500);
             addMessage("I'll be here.", 'nora');
+                showPersistentInput();
           }
         });
       };
@@ -1254,6 +1272,7 @@
       await showTyping(600);
       addMessage("What do you want to do today?", 'nora');
       // ✅ 재방문: show me today / ask a question만
+      showPersistentInput();
       showChoices(['Show me today', 'Ask a question'], async (mainChoice) => {
         if (mainChoice === 'Show me today') {
           const kstData = convertToKST(userData);
@@ -1273,31 +1292,45 @@
             await showTyping(600);
             addMessage("You've used your free question for today.", 'nora');
             await showTyping(500);
-            addMessage("Come back tomorrow for another free one — or answer it now.", 'nora');
-            showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
-              if (choice.includes('Answer it now')) {
-                await showTyping(500);
-                addMessage("What do you want to know?", 'nora');
-                showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
-              } else {
-                await showTyping(500);
-                addMessage("I'll be here.", 'nora');
-              }
-            });
-          } else {
-            // 무료 + 유료 둘 다 씀 — 추가 유료 질문 가능
-            await showTyping(600);
-            addMessage("You've used your free question and your paid one today.", 'nora');
-            await showTyping(500);
-            addMessage("Still have something on your mind?", 'nora');
-            showChoices([`Ask another — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
+            addMessage("Come back tomorrow for another free one — or:", 'nora');
+            showChoices([
+              `Ask another — $${PRICES.qa}`,
+              `Explore a specific area — $${PRICES.sector}`,
+              'Come back tomorrow'
+            ], async (choice) => {
               if (choice.includes('Ask another')) {
                 await showTyping(500);
                 addMessage("What do you want to know?", 'nora');
                 showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+              } else if (choice.includes('Explore')) {
+                await showSectorSelection();
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
+                showPersistentInput();
+              }
+            });
+          } else {
+            // 무료 + 유료 둘 다 씀
+            await showTyping(600);
+            addMessage("You've used your free question and your paid one today.", 'nora');
+            await showTyping(500);
+            addMessage("Still have something on your mind?", 'nora');
+            showChoices([
+              `Ask another — $${PRICES.qa}`,
+              `Explore a specific area — $${PRICES.sector}`,
+              'Come back tomorrow'
+            ], async (choice) => {
+              if (choice.includes('Ask another')) {
+                await showTyping(500);
+                addMessage("What do you want to know?", 'nora');
+                showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+              } else if (choice.includes('Explore')) {
+                await showSectorSelection();
+              } else {
+                await showTyping(500);
+                addMessage("I'll be here.", 'nora');
+                showPersistentInput();
               }
             });
           }
@@ -1535,13 +1568,23 @@
       }),
       onError: (err) => {
         wrapper.remove();
-        addMessage("Payment didn't go through. Let's try again.", 'nora');
-        setTimeout(() => { showChoices(['Try again','Maybe later'], async (c) => { if (c==='Try again') showPayPalButton(email,amount,type,category,onSuccessCallback); }); }, 800);
+        addMessage("Payment didn't go through.", 'nora');
+        setTimeout(async () => {
+          showChoices(['Try again', 'Start over'], async (ch) => {
+            if (ch === 'Try again') showPayPalButton(email,amount,type,category,onSuccessCallback);
+            else await showMainOptions(false);
+          });
+        }, 800);
       },
       onCancel: () => {
         wrapper.remove();
         addMessage("No problem — anytime. 💜", 'nora');
-        setTimeout(() => { showChoices(['Try again','Maybe later'], async (c) => { if (c==='Try again') showPayPalButton(email,amount,type,category,onSuccessCallback); }); }, 800);
+        setTimeout(async () => {
+          showChoices(['Try again', 'Start over'], async (ch) => {
+            if (ch === 'Try again') showPayPalButton(email,amount,type,category,onSuccessCallback);
+            else await showMainOptions(false);
+          });
+        }, 800);
       }
     }).render('#paypal-button-container');
     wrapper.insertAdjacentHTML('afterbegin', `<p style="font-size:11px;color:rgba(245,243,250,0.4);text-align:center;margin-bottom:10px;line-height:1.5;">By completing your purchase, you agree to our <a href="/privacy" target="_blank" style="color:rgba(201,169,233,0.7);">Privacy Policy</a></p>`);
@@ -1565,7 +1608,7 @@
         addMessage("You're all set. 🔮", 'nora');
         if (onSuccessCallback) onSuccessCallback();
       }),
-      onError: () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); },
+      onError: async () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); await showTyping(400); showChoices(['Try again', 'Start over'], async (ch) => { if (ch === 'Try again') showPayPalButtonInline(amount, onSuccessCallback); else await showMainOptions(false); }); },
       onCancel: () => { wrapper.remove(); addMessage("No problem — anytime. 💜", 'nora'); }
     }).render('#paypal-button-container');
   }
@@ -1692,7 +1735,7 @@
       await showTyping(500);
       addMessage("Do you know their birthday?", 'nora');
       showChoices(['Yes, I have it', 'No'], async (choice) => {
-        if (choice === 'No') { await showTyping(500); addMessage("Come back when you have it — your chart isn't going anywhere.", 'nora'); return; }
+        if (choice === 'No') { await showTyping(500); addMessage("Come back when you have it — your chart isn't going anywhere.", 'nora'); showPersistentInput(); return; }
         const months = Array.from({length:12},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
         const days   = Array.from({length:31},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
         const years  = [];
