@@ -1606,7 +1606,7 @@
       },
       onCancel: () => {
         wrapper.remove();
-        addMessage("No problem — anytime. 💜", 'nora');
+        addMessage("No problem — anytime.", 'nora');
         setTimeout(async () => {
           showChoices(['Try again', 'Start over'], async (ch) => {
             if (ch === 'Try again') showPayPalButton(email,amount,type,category,onSuccessCallback);
@@ -1637,7 +1637,7 @@
         if (onSuccessCallback) onSuccessCallback();
       }),
       onError: async () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); await showTyping(400); showChoices(['Try again', 'Start over'], async (ch) => { if (ch === 'Try again') showPayPalButtonInline(amount, onSuccessCallback); else await showMainOptions(false); }); },
-      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime. 💜", 'nora'); }
+      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime.", 'nora'); }
     }).render('#paypal-button-container');
   }
 
