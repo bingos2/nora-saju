@@ -766,8 +766,11 @@
         userData.timezone_short = detected.timezone_short;
         await showTyping(500);
         addMessage("No worries — I'll estimate based on your location.", 'nora');
-        await collectBirthTime();
-      }
+        if (userData.birthday_confirmed) {
+          await confirmBirthData();
+        } else {
+          await collectBirthTime();
+        }
     });
   }
 
