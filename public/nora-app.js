@@ -771,6 +771,7 @@
         } else {
           await collectBirthTime();
         }
+      } 
     });
   }
 
