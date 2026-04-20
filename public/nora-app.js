@@ -906,7 +906,7 @@
           addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
           await showMainOptions(false);
         } else {
-          addMessage("I thought so.", 'nora');
+          addMessage("I thought so. That pattern goes deeper than the overview showed you.", 'nora');
           await showTyping(700);
           addMessage("There's more. Is there something specific you want to understand — about love, money, work, or just your energy right now?", 'nora');
           await showTyping(600);
