@@ -1132,16 +1132,50 @@ async function showMainOptions(hasAskedQuestion) {
     choices.innerHTML = '';
 
     // 1. QA 버튼 (먼저)
-    const freeUsed = getFreeQAUsed();
+const freeUsed = getFreeQAUsed();
     const paidUsed = getPaidQAUsed();
     if (!freeUsed) {
-      // ... qaBtn 코드
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = 'Ask me anything';
+      qaBtn.onclick = async () => {
+        addMessage('Ask me anything', 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage("What do you want to know?", 'nora');
+        showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
+      };
       choices.appendChild(qaBtn);
     } else if (!paidUsed) {
-      // ... qaBtn 코드
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = `Ask a question — $${PRICES.qa}`;
+      qaBtn.onclick = async () => {
+        addMessage(`Ask a question — $${PRICES.qa}`, 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage("Come back tomorrow for a free one — or ask now.", 'nora');
+        showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
+          if (choice.includes('Answer it now')) {
+            await showTyping(500);
+            addMessage("What do you want to know?", 'nora');
+            showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+          } else {
+            await showTyping(500);
+            addMessage("I'll be here.", 'nora');
+            showPersistentInput();
+          }
+        });
+      };
       choices.appendChild(qaBtn);
     } else {
-      // ... qaBtn 코드
+      const qaBtn = document.createElement('button');
+      qaBtn.className = 'choice-btn';
+      qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
+      qaBtn.onclick = async () => {
+        addMessage(`Ask another question — $${PRICES.qa}`, 'user'); hideAllInputs();
+        await showTyping(600);
+        addMessage("What do you want to know?", 'nora');
+        showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
+      };
       choices.appendChild(qaBtn);
     }
 
