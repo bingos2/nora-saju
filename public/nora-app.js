@@ -1127,88 +1127,49 @@
   }
 
   // ── 메인 옵션 — sector | full reading | another question ──
-  async function showMainOptions(hasAskedQuestion) {
+async function showMainOptions(hasAskedQuestion) {
     hideAllInputs();
     choices.innerHTML = '';
 
-    // 1. Show me a specific area (sector)
+    // 1. QA 버튼 (먼저)
+    const freeUsed = getFreeQAUsed();
+    const paidUsed = getPaidQAUsed();
+    if (!freeUsed) {
+      // ... qaBtn 코드
+      choices.appendChild(qaBtn);
+    } else if (!paidUsed) {
+      // ... qaBtn 코드
+      choices.appendChild(qaBtn);
+    } else {
+      // ... qaBtn 코드
+      choices.appendChild(qaBtn);
+    }
+
+    // 2. Sector 버튼  ← 여기 (함수 안)
     const sectorBtn = document.createElement('button');
     sectorBtn.className = 'choice-btn';
-    sectorBtn.textContent = `Show me a specific area — $${PRICES.sector}`;
-    sectorBtn.onclick = async () => { addMessage('Show me a specific area', 'user'); hideAllInputs(); await showSectorSelection(); };
+    sectorBtn.textContent = 'Read one area';
+    sectorBtn.onclick = async () => { addMessage('Read one area', 'user'); hideAllInputs(); await showSectorSelection(); };
     choices.appendChild(sectorBtn);
 
-    // 2. Full reading
+    // 3. Full reading 버튼  ← 여기 (함수 안)
     const fullBtn = document.createElement('button');
     fullBtn.className = 'choice-btn';
-    fullBtn.textContent = `Give me everything — $${PRICES.full_reading}`;
+    fullBtn.textContent = `Read everything — $${PRICES.full_reading}`;
     fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);`;
     fullBtn.onclick = async () => {
-      addMessage('Give me everything', 'user'); hideAllInputs();
+      addMessage('Read everything', 'user'); hideAllInputs();
       await showTyping(700);
       addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
 
-    // 3. Ask a question — 상태별 표시
-    const freeUsed = getFreeQAUsed();
-    const paidUsed = getPaidQAUsed();
-
-    if (!freeUsed) {
-      // 오늘 무료 아직 안 씀
-      const qaBtn = document.createElement('button');
-      qaBtn.className = 'choice-btn';
-      qaBtn.textContent = 'Ask a question — free';
-      qaBtn.onclick = async () => {
-        addMessage('Ask a question — free', 'user'); hideAllInputs();
-        await showTyping(600);
-        addMessage("What do you want to know?", 'nora');
-        showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
-      };
-      choices.appendChild(qaBtn);
-    } else if (!paidUsed) {
-      // 무료 썼고 유료 아직 안 씀
-      const qaBtn = document.createElement('button');
-      qaBtn.className = 'choice-btn';
-      qaBtn.textContent = `Ask a question — $${PRICES.qa}`;
-      qaBtn.onclick = async () => {
-        addMessage(`Ask a question — $${PRICES.qa}`, 'user'); hideAllInputs();
-        await showTyping(600);
-        addMessage("Come back tomorrow for a free one — or ask now.", 'nora');
-        showChoices([`Answer it now — $${PRICES.qa}`, 'Come back tomorrow'], async (choice) => {
-          if (choice.includes('Answer it now')) {
-            await showTyping(500);
-            addMessage("What do you want to know?", 'nora');
-            showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
-          } else {
-            await showTyping(500);
-            addMessage("I'll be here.", 'nora');
-                showPersistentInput();
-          }
-        });
-      };
-      choices.appendChild(qaBtn);
-    }
-    else {
-      // 둘 다 썼어도 추가 질문 가능 (유료)
-      const qaBtn = document.createElement('button');
-      qaBtn.className = 'choice-btn';
-      qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
-      qaBtn.onclick = async () => {
-        addMessage(`Ask another question — $${PRICES.qa}`, 'user'); hideAllInputs();
-        await showTyping(600);
-        addMessage("What do you want to know?", 'nora');
-        showTextInput('Ask anything...', async (q) => { await initiateQAPayment(q); });
-      };
-      choices.appendChild(qaBtn);
-    }
-
-    choices.classList.add('show');
+    choices.classList.add('show');   // ← 여기서 닫기
     inputArea.classList.add('show');
     showPersistentInput();
     scrollToBottom();
-  }
+  }  
 
   async function showSectorSelection() {
     await showTyping(600);
