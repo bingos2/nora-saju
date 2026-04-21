@@ -1192,11 +1192,52 @@ const freeUsed = getFreeQAUsed();
     fullBtn.textContent = `Read everything — $${PRICES.full_reading}`;
     fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);`;
     fullBtn.onclick = async () => {
-      addMessage('Read everything', 'user'); hideAllInputs();
-      await showTyping(700);
-      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
-      await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+  addMessage('Read everything', 'user'); hideAllInputs();
+  await showTyping(700);
+  addMessage("Your full reading covers everything.", 'nora');
+  await showTyping(600);
+  addMessage("Who you actually are. The pattern underneath. Timing for love, money, work, and energy — with specific months.", 'nora');
+  await showTyping(500);
+
+  // 오행 미리보기 카드
+  const preview = document.createElement('div');
+  preview.style.cssText = 'background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.15);border-radius:8px;padding:14px 16px;margin:4px 0;max-width:320px;';
+  const missing = sajuResults?.bubbles?.missing_element || '';
+  const elements = ['Wood','Fire','Earth','Metal','Water'];
+  const mockWidths = {Wood:'25%', Fire:'38%', Earth:'20%', Metal:'12%', Water:'15%'};
+  const bars = elements.map(el => {
+    const isMissing = missing === el;
+    const colors = {
+      Wood: 'linear-gradient(90deg,#4A9A38,#7ABD60)',
+      Fire: 'linear-gradient(90deg,#C04040,#E06060)',
+      Earth: 'linear-gradient(90deg,#A07830,#C8A050)',
+      Metal: 'linear-gradient(90deg,#9880C0,#C9A9E9)',
+      Water: 'linear-gradient(90deg,#3060A8,#5888D0)'
     };
+    return `<div style="display:table;width:100%;margin-bottom:7px;">
+      <div style="display:table-row;">
+        <div style="display:table-cell;width:46px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,243,250,${isMissing?'0.25':'0.4'});vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif;">${el}</div>
+        <div style="display:table-cell;vertical-align:middle;padding:0 10px;">
+          <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${isMissing?'3px':mockWidths[el]};background:${colors[el]};border-radius:99px;"></div>
+          </div>
+        </div>
+        <div style="display:table-cell;width:28px;font-size:10px;color:rgba(245,243,250,0.3);text-align:right;vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif;">${isMissing?'0%':'?%'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  preview.innerHTML = `
+    <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif;">Your five elements</div>
+    ${bars}
+    <div style="font-size:11px;color:rgba(201,169,233,0.4);margin-top:8px;font-style:italic;font-family:'Playfair Display',serif;">Full breakdown in your reading.</div>
+  `;
+  chat.insertBefore(preview, typing);
+  scrollToBottom();
+
+  await showTyping(600);
+  await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+};
     choices.appendChild(fullBtn);
 
     choices.classList.add('show');   // ← 여기서 닫기
