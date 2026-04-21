@@ -1162,7 +1162,10 @@ const freeUsed = getFreeQAUsed();
           } else {
             await showTyping(500);
             addMessage("I'll be here.", 'nora');
-            showPersistentInput();
+            await showTyping(400);
+            showChoices(['Start over'], async () => {
+              await showMainOptions(false);
+            });
           }
         });
       };
@@ -1376,7 +1379,10 @@ const freeUsed = getFreeQAUsed();
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                showPersistentInput();
+                await showTyping(400);
+                showChoices(['Start over'], async () => {
+                  await showMainOptions(false);
+                });
               }
             });
           } else {
@@ -1399,7 +1405,10 @@ const freeUsed = getFreeQAUsed();
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                showPersistentInput();
+                await showTyping(400);
+                showChoices(['Start over'], async () => {
+                  await showMainOptions(false);
+                });
               }
             });
           }
