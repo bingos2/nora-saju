@@ -837,6 +837,7 @@
         }));
         await loadingAndReading();
       } else {
+        userData.birthday_confirmed = true;
         await showFixMenu();
       }
     });
