@@ -1734,9 +1734,9 @@ const freeUsed = getFreeQAUsed();
         } else {
           showTextInput('Your email', async (email) => {
             if (email && email.includes('@')) {
-              userData.lastEmail = email;
-              localStorage.setItem('nora_last_email', email);
               await sendWeekly(email);
+            } else {
+              await showEndOptions();
             }
           }, false);
         }
