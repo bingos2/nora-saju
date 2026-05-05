@@ -547,7 +547,102 @@
     setTimeout(() => el.remove(), 3000);
   }
 
-    function showStartOverInput() {
+  
+  // ── 샘플 리포트 미리보기 ──────────────────────────────
+  function showSampleReport() {
+    const sampleEl = document.createElement('div');
+    sampleEl.style.cssText = 'margin:8px 0;';
+    sampleEl.innerHTML = `
+      <div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.15);border-radius:8px;padding:14px 16px;">
+        <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif;">What a full reading looks like</div>
+        <div style="font-size:12px;color:rgba(245,243,250,0.5);margin-bottom:10px;line-height:1.6;">Personalized to your exact birth data. Your elements, your pattern, your timing.</div>
+        <button onclick="document.getElementById('nora-sample-overlay').style.display='flex'" style="background:transparent;border:1px solid rgba(201,169,233,0.35);color:rgba(201,169,233,0.8);font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;letter-spacing:0.1em;padding:8px 16px;border-radius:99px;cursor:pointer;">View sample reading →</button>
+      </div>
+    `;
+    chat.insertBefore(sampleEl, typing);
+
+    if (!document.getElementById('nora-sample-overlay')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'nora-sample-overlay';
+      overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:999;background:rgba(10,9,18,0.85);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;';
+      overlay.innerHTML = `
+        <div style="background:#12111A;border:1px solid rgba(201,169,233,0.2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:24px;">
+          <div style="position:sticky;top:0;background:#12111A;padding:14px 16px 10px;border-bottom:1px solid rgba(201,169,233,0.08);display:flex;justify-content:space-between;align-items:center;z-index:1;">
+            <span style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);">Sample Reading</span>
+            <button onclick="document.getElementById('nora-sample-overlay').style.display='none'" style="background:transparent;border:none;color:rgba(245,243,250,0.4);font-size:20px;cursor:pointer;line-height:1;">×</button>
+          </div>
+          <iframe src="/nora-sample-report.html" style="width:100%;height:75vh;border:none;" scrolling="yes"></iframe>
+        </div>
+      `;
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.style.display = 'none';
+      });
+      document.body.appendChild(overlay);
+    }
+
+    scrollToBottom();
+  }
+
+
+  // ── 이메일 캡처 — 결제 전 무료 구독 유도 ─────────────────
+  async function emailCaptureFlow(onComplete) {
+    const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
+    if (lastEmail) {
+      // 이미 이메일 있으면 바로 다음으로
+      await onComplete();
+      return;
+    }
+    await showTyping(600);
+    addMessage("Want me to send you a weekly reading? It's free.", 'nora');
+    showChoices(['Yes — send it', 'Skip for now'], async (choice) => {
+      if (choice === 'Yes — send it') {
+        await showTyping(400);
+        addMessage("What's your email?", 'nora');
+        showTextInput('Your email', async (email) => {
+          if (!email || !email.includes('@')) {
+            await showTyping(300);
+            addMessage("Try that again?", 'nora');
+            showTextInput('Your email', async (email2) => {
+              if (email2 && email2.includes('@')) {
+                userData.lastEmail = email2;
+                localStorage.setItem('nora_last_email', email2);
+                // 백그라운드로 weekly subscribe 전송
+                try {
+                  await fetch(WEEKLY_WEBHOOK_URL, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ type:'weekly_subscribe', email: email2, name: userData.name,
+                      element: sajuResults?.pillars?.day?.tg || 'Unknown',
+                      birthday: userData.birthday, timezone: userData.timezone })
+                  });
+                } catch(e) {}
+                await showTyping(400);
+                addMessage("Got it. First one comes this week.", 'nora');
+              }
+              await onComplete();
+            }, false);
+            return;
+          }
+          userData.lastEmail = email;
+          localStorage.setItem('nora_last_email', email);
+          try {
+            await fetch(WEEKLY_WEBHOOK_URL, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name,
+                element: sajuResults?.pillars?.day?.tg || 'Unknown',
+                birthday: userData.birthday, timezone: userData.timezone })
+            });
+          } catch(e) {}
+          await showTyping(400);
+          addMessage("Got it. First one comes this week.", 'nora');
+          await onComplete();
+        }, false);
+      } else {
+        await onComplete();
+      }
+    });
+  }
+
+  function showStartOverInput() {
     // persistent input만 표시 — 유저가 직접 타이핑으로 다음 행동 결정
     showPersistentInput();
   }
@@ -678,9 +773,9 @@
   // ── 새 유저 — 이름 먼저 ────────────────────────────────
   async function newUserFlow() {
     await showTyping(700);
-    addMessage("I'm Nora — I read Korean saju.", 'nora');
-    await showTyping(700);
-    addMessage("People usually come here when something feels a little off.", 'nora');
+    addMessage("People usually come here", 'nora');
+    await showTyping(600);
+    addMessage("when something feels a little off.", 'nora');
     await showTyping(900);
     addMessage("You're sitting with something you can't fully explain.", 'nora');
     showChoices(["Yeah", "Not really"], async (openChoice) => {
@@ -761,17 +856,18 @@
         // 브라우저 timezone 자동 감지 — 확인 문장에서 숨김
         const detected = detectTimezoneFromBrowser();
         userData.state = detected.state;
-        userData.stateConfirmed = false; // 자동 감지 = 확인 문장에서 숨김
+        userData.stateConfirmed = false;
         userData.timezone = detected.timezone;
         userData.timezone_short = detected.timezone_short;
         await showTyping(500);
         addMessage("No worries — I'll estimate based on your location.", 'nora');
+        // 수정 모드면 바로 확인, 신규면 birth time으로
         if (userData.birthday_confirmed) {
           await confirmBirthData();
         } else {
           await collectBirthTime();
         }
-      } 
+      }
     });
   }
 
@@ -837,7 +933,6 @@
         }));
         await loadingAndReading();
       } else {
-        userData.birthday_confirmed = true;
         await showFixMenu();
       }
     });
@@ -890,12 +985,16 @@
     if (userData.user_intent === 'question') {
       // 사주 읽은 후 — pendingQuestion이 있으면 바로 사용, 없으면 다시 물어보기
       if (userData.pendingQuestion) {
-        await handleFreeQA(userData.pendingQuestion);
-        userData.pendingQuestion = null;
+        await emailCaptureFlow(async () => {
+          await handleFreeQA(userData.pendingQuestion);
+          userData.pendingQuestion = null;
+        });
       } else {
-        await showTyping(700);
-        addMessage("Now — what's your question?", 'nora');
-        showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
+        await emailCaptureFlow(async () => {
+          await showTyping(700);
+          addMessage("Now — what's your question?", 'nora');
+          showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
+        });
       }
     } else {
       await showTyping(700);
@@ -905,14 +1004,20 @@
         await showTyping(600);
         if (reaction === 'Not quite') {
           addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
-          await showMainOptions(false);
+          await emailCaptureFlow(async () => { await showMainOptions(false); });
         } else {
-          addMessage("I thought so. That pattern goes deeper than the overview showed you.", 'nora');
+          addMessage("I thought so.", 'nora');
           await showTyping(700);
-          addMessage("There's more. Is there something specific you want to understand — about love, money, work, or just your energy right now?", 'nora');
+          addMessage("That pattern goes deeper than the overview showed you. There's a reason it keeps happening — and it traces back to something specific in your chart.", 'nora');
           await showTyping(600);
-          addMessage("If you want, I can read one area in detail. It tells you things the overview can't.", 'nora');
-          await showMainOptions(false);
+          addMessage("Want me to go there?", 'nora');
+          showChoices(["Yes — show me", "Maybe later"], async (next) => {
+            if (next === "Yes — show me") {
+              await emailCaptureFlow(async () => { await showMainOptions(true); });
+            } else {
+              await emailCaptureFlow(async () => { await maybeLaterFlow(0); });
+            }
+          });
         }
       });
     }
@@ -1128,25 +1233,48 @@
   }
 
   // ── 메인 옵션 — sector | full reading | another question ──
-async function showMainOptions(hasAskedQuestion) {
+  async function showMainOptions(hasAskedQuestion) {
     hideAllInputs();
     choices.innerHTML = '';
 
-    // 1. QA 버튼 (먼저)
-const freeUsed = getFreeQAUsed();
+    // 1. Show me a specific area (sector)
+    const sectorBtn = document.createElement('button');
+    sectorBtn.className = 'choice-btn';
+    sectorBtn.textContent = `Show me a specific area — $${PRICES.sector}`;
+    sectorBtn.onclick = async () => { addMessage('Show me a specific area', 'user'); hideAllInputs(); await showSectorSelection(); };
+    choices.appendChild(sectorBtn);
+
+    // 2. Full reading
+    const fullBtn = document.createElement('button');
+    fullBtn.className = 'choice-btn';
+    fullBtn.textContent = `Give me everything — $${PRICES.full_reading}`;
+    fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);`;
+    fullBtn.onclick = async () => {
+      addMessage('Give me everything', 'user'); hideAllInputs();
+      await showTyping(700);
+      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
+      await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
+    };
+    choices.appendChild(fullBtn);
+
+    // 3. Ask a question — 상태별 표시
+    const freeUsed = getFreeQAUsed();
     const paidUsed = getPaidQAUsed();
+
     if (!freeUsed) {
+      // 오늘 무료 아직 안 씀
       const qaBtn = document.createElement('button');
       qaBtn.className = 'choice-btn';
-      qaBtn.textContent = 'Ask me anything';
+      qaBtn.textContent = 'Ask a question — free';
       qaBtn.onclick = async () => {
-        addMessage('Ask me anything', 'user'); hideAllInputs();
+        addMessage('Ask a question — free', 'user'); hideAllInputs();
         await showTyping(600);
         addMessage("What do you want to know?", 'nora');
         showTextInput('Ask anything...', async (q) => { await handleFreeQA(q); });
       };
       choices.appendChild(qaBtn);
     } else if (!paidUsed) {
+      // 무료 썼고 유료 아직 안 씀
       const qaBtn = document.createElement('button');
       qaBtn.className = 'choice-btn';
       qaBtn.textContent = `Ask a question — $${PRICES.qa}`;
@@ -1162,15 +1290,14 @@ const freeUsed = getFreeQAUsed();
           } else {
             await showTyping(500);
             addMessage("I'll be here.", 'nora');
-            await showTyping(400);
-            showChoices(['Start over'], async () => {
-              await showMainOptions(false);
-            });
+                showPersistentInput();
           }
         });
       };
       choices.appendChild(qaBtn);
-    } else {
+    }
+    else {
+      // 둘 다 썼어도 추가 질문 가능 (유료)
       const qaBtn = document.createElement('button');
       qaBtn.className = 'choice-btn';
       qaBtn.textContent = `Ask another question — $${PRICES.qa}`;
@@ -1183,72 +1310,11 @@ const freeUsed = getFreeQAUsed();
       choices.appendChild(qaBtn);
     }
 
-    // 2. Sector 버튼  ← 여기 (함수 안)
-    const sectorBtn = document.createElement('button');
-    sectorBtn.className = 'choice-btn';
-    sectorBtn.textContent = 'Read one area';
-    sectorBtn.onclick = async () => { addMessage('Read one area', 'user'); hideAllInputs(); await showSectorSelection(); };
-    choices.appendChild(sectorBtn);
-
-    // 3. Full reading 버튼  ← 여기 (함수 안)
-    const fullBtn = document.createElement('button');
-    fullBtn.className = 'choice-btn';
-    fullBtn.textContent = `Read everything — $${PRICES.full_reading}`;
-    fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);`;
-    fullBtn.onclick = async () => {
-  addMessage('Read everything', 'user'); hideAllInputs();
-  await showTyping(700);
-  addMessage("Your full reading covers everything.", 'nora');
-  await showTyping(600);
-  addMessage("Who you actually are. The pattern underneath. Timing for love, money, work, and energy — with specific months.", 'nora');
-  await showTyping(500);
-
-  // 오행 미리보기 카드
-  const preview = document.createElement('div');
-  preview.style.cssText = 'background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.15);border-radius:8px;padding:14px 16px;margin:4px 0;max-width:320px;';
-  const missing = sajuResults?.bubbles?.missing_element || '';
-  const elements = ['Wood','Fire','Earth','Metal','Water'];
-  const mockWidths = {Wood:'25%', Fire:'38%', Earth:'20%', Metal:'12%', Water:'15%'};
-  const bars = elements.map(el => {
-    const isMissing = missing === el;
-    const colors = {
-      Wood: 'linear-gradient(90deg,#4A9A38,#7ABD60)',
-      Fire: 'linear-gradient(90deg,#C04040,#E06060)',
-      Earth: 'linear-gradient(90deg,#A07830,#C8A050)',
-      Metal: 'linear-gradient(90deg,#9880C0,#C9A9E9)',
-      Water: 'linear-gradient(90deg,#3060A8,#5888D0)'
-    };
-    return `<div style="display:table;width:100%;margin-bottom:7px;">
-      <div style="display:table-row;">
-        <div style="display:table-cell;width:46px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,243,250,${isMissing?'0.25':'0.4'});vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif;">${el}</div>
-        <div style="display:table-cell;vertical-align:middle;padding:0 10px;">
-          <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
-            <div style="height:100%;width:${isMissing?'3px':mockWidths[el]};background:${colors[el]};border-radius:99px;"></div>
-          </div>
-        </div>
-        <div style="display:table-cell;width:28px;font-size:10px;color:rgba(245,243,250,0.3);text-align:right;vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif;">${isMissing?'0%':'?%'}</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  preview.innerHTML = `
-    <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif;">Your five elements</div>
-    ${bars}
-    <div style="font-size:11px;color:rgba(201,169,233,0.4);margin-top:8px;font-style:italic;font-family:'Playfair Display',serif;">Full breakdown in your reading.</div>
-  `;
-  chat.insertBefore(preview, typing);
-  scrollToBottom();
-
-  await showTyping(600);
-  await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
-};
-    choices.appendChild(fullBtn);
-
-    choices.classList.add('show');   // ← 여기서 닫기
+    choices.classList.add('show');
     inputArea.classList.add('show');
     showPersistentInput();
     scrollToBottom();
-  }  
+  }
 
   async function showSectorSelection() {
     await showTyping(600);
@@ -1345,8 +1411,8 @@ const freeUsed = getFreeQAUsed();
       addMessage("What do you want to do today?", 'nora');
       // ✅ 재방문: show me today / ask a question만
       showPersistentInput();
-      showChoices(['Show me today', 'Ask a question'], async (mainChoice) => {
-        if (mainChoice === 'Show me today') {
+      showChoices(['Show me', 'Ask a question'], async (mainChoice) => {
+        if (mainChoice === 'Show me') {
           const kstData = convertToKST(userData);
           userData = { ...userData, ...kstData };
           await generateTodayReading(userData);
@@ -1379,10 +1445,7 @@ const freeUsed = getFreeQAUsed();
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                await showTyping(400);
-                showChoices(['Start over'], async () => {
-                  await showMainOptions(false);
-                });
+                showPersistentInput();
               }
             });
           } else {
@@ -1405,10 +1468,7 @@ const freeUsed = getFreeQAUsed();
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                await showTyping(400);
-                showChoices(['Start over'], async () => {
-                  await showMainOptions(false);
-                });
+                showPersistentInput();
               }
             });
           }
@@ -1582,6 +1642,16 @@ const freeUsed = getFreeQAUsed();
   function showPayPalButton(email, amount, type, category, onSuccessCallback) {
     const existing = document.getElementById('paypal-button-container');
     if (existing) existing.remove();
+    // FIX 6: PayPal 버튼 위 Nora 한 줄
+    const noraLine = document.createElement('div');
+    noraLine.style.cssText = 'text-align:center;font-family:"Playfair Display",serif;font-style:italic;font-size:13px;color:rgba(201,169,233,0.7);padding:8px 0 4px;';
+    noraLine.textContent = '“I’ll have everything ready by the time you’re done.” — Nora';
+    chat.insertBefore(noraLine, typing);
+    // One-time 명시
+    const oneTime = document.createElement('div');
+    oneTime.style.cssText = 'text-align:center;font-size:11px;color:rgba(245,243,250,0.3);padding:4px 0 8px;letter-spacing:0.05em;';
+    oneTime.textContent = 'One-time purchase · No subscription · No hidden fees';
+    chat.insertBefore(oneTime, typing);
     const wrapper = document.createElement('div');
     wrapper.id = 'paypal-button-container';
     wrapper.style.cssText = 'padding:12px 0;';
@@ -1656,7 +1726,7 @@ const freeUsed = getFreeQAUsed();
       },
       onCancel: () => {
         wrapper.remove();
-        addMessage("No problem — anytime.", 'nora');
+        addMessage("No problem — anytime. 💜", 'nora');
         setTimeout(async () => {
           showChoices(['Try again', 'Start over'], async (ch) => {
             if (ch === 'Try again') showPayPalButton(email,amount,type,category,onSuccessCallback);
@@ -1671,6 +1741,16 @@ const freeUsed = getFreeQAUsed();
   function showPayPalButtonInline(amount, onSuccessCallback) {
     const existing = document.getElementById('paypal-button-container');
     if (existing) existing.remove();
+    // FIX 6: PayPal 버튼 위 Nora 한 줄
+    const noraLine = document.createElement('div');
+    noraLine.style.cssText = 'text-align:center;font-family:"Playfair Display",serif;font-style:italic;font-size:13px;color:rgba(201,169,233,0.7);padding:8px 0 4px;';
+    noraLine.textContent = '“I’ll have everything ready by the time you’re done.” — Nora';
+    chat.insertBefore(noraLine, typing);
+    // One-time 명시
+    const oneTime = document.createElement('div');
+    oneTime.style.cssText = 'text-align:center;font-size:11px;color:rgba(245,243,250,0.3);padding:4px 0 8px;letter-spacing:0.05em;';
+    oneTime.textContent = 'One-time purchase · No subscription · No hidden fees';
+    chat.insertBefore(oneTime, typing);
     const wrapper = document.createElement('div');
     wrapper.id = 'paypal-button-container';
     wrapper.style.cssText = 'padding:12px 0;';
@@ -1687,7 +1767,7 @@ const freeUsed = getFreeQAUsed();
         if (onSuccessCallback) onSuccessCallback();
       }),
       onError: async () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); await showTyping(400); showChoices(['Try again', 'Start over'], async (ch) => { if (ch === 'Try again') showPayPalButtonInline(amount, onSuccessCallback); else await showMainOptions(false); }); },
-      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime.", 'nora'); }
+      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime. 💜", 'nora'); }
     }).render('#paypal-button-container');
   }
 
@@ -1734,9 +1814,9 @@ const freeUsed = getFreeQAUsed();
         } else {
           showTextInput('Your email', async (email) => {
             if (email && email.includes('@')) {
+              userData.lastEmail = email;
+              localStorage.setItem('nora_last_email', email);
               await sendWeekly(email);
-            } else {
-              await showEndOptions();
             }
           }, false);
         }
