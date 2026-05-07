@@ -933,6 +933,7 @@
         }));
         await loadingAndReading();
       } else {
+        userData.birthday_confirmed = true;
         await showFixMenu();
       }
     });
@@ -985,16 +986,12 @@
     if (userData.user_intent === 'question') {
       // 사주 읽은 후 — pendingQuestion이 있으면 바로 사용, 없으면 다시 물어보기
       if (userData.pendingQuestion) {
-        await emailCaptureFlow(async () => {
-          await handleFreeQA(userData.pendingQuestion);
-          userData.pendingQuestion = null;
-        });
+        await handleFreeQA(userData.pendingQuestion);
+        userData.pendingQuestion = null;
       } else {
-        await emailCaptureFlow(async () => {
-          await showTyping(700);
-          addMessage("Now — what's your question?", 'nora');
-          showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
-        });
+        await showTyping(700);
+        addMessage("Now — what's your question?", 'nora');
+        showTextInput('Ask anything...', async (question) => { await handleFreeQA(question); });
       }
     } else {
       await showTyping(700);
@@ -1004,7 +1001,7 @@
         await showTyping(600);
         if (reaction === 'Not quite') {
           addMessage("Fair. The overview doesn't always hit right away. Let me show you something more specific.", 'nora');
-          await emailCaptureFlow(async () => { await showMainOptions(false); });
+          await showMainOptions(false);
         } else {
           addMessage("I thought so.", 'nora');
           await showTyping(700);
@@ -1013,9 +1010,9 @@
           addMessage("Want me to go there?", 'nora');
           showChoices(["Yes — show me", "Maybe later"], async (next) => {
             if (next === "Yes — show me") {
-              await emailCaptureFlow(async () => { await showMainOptions(true); });
+              await showMainOptions(true);
             } else {
-              await emailCaptureFlow(async () => { await maybeLaterFlow(0); });
+              await maybeLaterFlow(0);
             }
           });
         }
@@ -1252,7 +1249,12 @@
     fullBtn.onclick = async () => {
       addMessage('Give me everything', 'user'); hideAllInputs();
       await showTyping(700);
-      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
+      addMessage("Your full reading covers everything.", 'nora');
+      await showTyping(600);
+      addMessage("Who you actually are. The pattern underneath. Timing for love, money, work, and energy — with specific months.", 'nora');
+      await showTyping(500);
+      showSampleReport();
+      await showTyping(800);
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
@@ -1726,7 +1728,7 @@
       },
       onCancel: () => {
         wrapper.remove();
-        addMessage("No problem — anytime. 💜", 'nora');
+        addMessage("Whenever you're ready.", 'nora');
         setTimeout(async () => {
           showChoices(['Try again', 'Start over'], async (ch) => {
             if (ch === 'Try again') showPayPalButton(email,amount,type,category,onSuccessCallback);
@@ -1767,7 +1769,7 @@
         if (onSuccessCallback) onSuccessCallback();
       }),
       onError: async () => { wrapper.remove(); addMessage("Payment didn't go through.", 'nora'); await showTyping(400); showChoices(['Try again', 'Start over'], async (ch) => { if (ch === 'Try again') showPayPalButtonInline(amount, onSuccessCallback); else await showMainOptions(false); }); },
-      onCancel: () => { wrapper.remove(); addMessage("No problem — anytime. 💜", 'nora'); }
+      onCancel: () => { wrapper.remove(); addMessage("Whenever you're ready.", 'nora'); }
     }).render('#paypal-button-container');
   }
 
