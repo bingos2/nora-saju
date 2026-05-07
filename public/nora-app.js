@@ -773,11 +773,15 @@
   // ── 새 유저 — 이름 먼저 ────────────────────────────────
   async function newUserFlow() {
     await showTyping(700);
-    addMessage("People usually come here", 'nora');
+    addMessage("I'm Nora.", 'nora');
     await showTyping(600);
-    addMessage("when something feels a little off.", 'nora');
+    addMessage("It's not a personality type. It's a map.", 'nora');
+    await showTyping(700);
+    addMessage("Built from the exact moment you were born.", 'nora');
     await showTyping(900);
-    addMessage("You're sitting with something you can't fully explain.", 'nora');
+    addMessage("People come here when something feels off", 'nora');
+    await showTyping(400);
+    addMessage("and they want a real answer — not a vague one.", 'nora');
     showChoices(["Yeah", "Not really"], async (openChoice) => {
       if (openChoice === "Yeah") {
         await showTyping(500);
@@ -1356,14 +1360,18 @@
     fullBtn.onclick = async () => {
       addMessage('Give me everything', 'user'); hideAllInputs();
       await showTyping(700);
-      addMessage("Your full reading covers all four areas, the pattern underneath all of it — and one thing I can't say here.", 'nora');
+      addMessage("Your full reading covers everything.", 'nora');
+      await showTyping(600);
+      addMessage("Who you actually are. The pattern underneath. Timing for love, money, work, and energy — with specific months.", 'nora');
+      await showTyping(500);
+      showSampleReport();
+      await showTyping(800);
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
 
     choices.classList.add('show');
     inputArea.classList.add('show');
-    // Fix 14: 타이핑도 항상 가능
     showPersistentInput();
     scrollToBottom();
   }
@@ -1581,9 +1589,14 @@
     fullBtn.textContent = `Full reading — $${PRICES.full_reading}`;
     fullBtn.style.cssText = `background:linear-gradient(135deg,rgba(201,169,233,0.25),rgba(232,180,211,0.25));border:1px solid rgba(201,169,233,0.4);width:100%;margin-top:4px;`;
     fullBtn.onclick = async () => {
-      addMessage('Full reading', 'user'); hideAllInputs();
+      addMessage('Give me everything', 'user'); hideAllInputs();
       await showTyping(700);
-      addMessage("Your full reading covers who you actually are underneath all the adapting, the pattern you keep repeating and why — and one thing I can't say here.", 'nora');
+      addMessage("Your full reading covers everything.", 'nora');
+      await showTyping(600);
+      addMessage("Who you actually are. The pattern underneath. Timing for love, money, work, and energy — with specific months.", 'nora');
+      await showTyping(500);
+      showSampleReport();
+      await showTyping(800);
       await initiatePayment(userData, PRICES.full_reading, 'paid_reading', '');
     };
     choices.appendChild(fullBtn);
@@ -1600,6 +1613,23 @@
   async function initiatePayment(ud, amount, type, category) {
     const pi = document.getElementById('persistent-input');
     if (pi) pi.remove();
+
+    // FIX 2: full reading 결제 전 개인화 문구
+    if (type === 'paid_reading') {
+      await showTyping(600);
+      addMessage(`${ud.name}'s chart is ready.`, 'nora');
+      await showTyping(600);
+      addMessage("This is built from your exact birth data.", 'nora');
+      await showTyping(400);
+      addMessage("No one else gets this reading.", 'nora');
+      await showTyping(800);
+      addMessage("What I showed you is the surface.", 'nora');
+      await showTyping(500);
+      addMessage("The full reading goes into why your patterns keep repeating,", 'nora');
+      await showTyping(400);
+      addMessage("what's actually moving in your chart right now, and what's coming.", 'nora');
+      await showTyping(500);
+    }
 
     const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
 
@@ -1830,7 +1860,11 @@
 
   async function showEndOptions() {
     await showTyping(500);
-    addMessage("Take care of yourself. Your chart is watching.", 'nora');
+    addMessage("Your reading is on its way. Check your inbox.", 'nora');
+    await showTyping(700);
+    addMessage("Your chart isn't going anywhere.", 'nora');
+    await showTyping(500);
+    addMessage("Come back when something shifts.", 'nora');
     await showTyping(700);
     showChoices(['Show me today', 'Ask a question', "I'm done for now"], async (endChoice) => {
       if (endChoice === 'Show me today') {
