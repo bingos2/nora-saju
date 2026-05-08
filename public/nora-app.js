@@ -552,130 +552,100 @@
   function showSampleReport() {
     const sampleEl = document.createElement('div');
     sampleEl.style.cssText = 'margin:8px 0;';
-    sampleEl.innerHTML = `
-      <div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.15);border-radius:8px;padding:14px 16px;">
-        <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif;">What a full reading looks like</div>
-        <div style="font-size:12px;color:rgba(245,243,250,0.5);margin-bottom:10px;line-height:1.6;">Personalized to your exact birth data. Your elements, your pattern, your timing.</div>
-        <button onclick="document.getElementById('nora-sample-overlay').style.display='flex'" style="background:transparent;border:1px solid rgba(201,169,233,0.35);color:rgba(201,169,233,0.8);font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;letter-spacing:0.1em;padding:8px 16px;border-radius:99px;cursor:pointer;">View sample reading →</button>
-      </div>
-    `;
+    sampleEl.innerHTML = '<div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.15);border-radius:8px;padding:14px 16px;"><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);margin-bottom:10px;font-family:\'Plus Jakarta Sans\',sans-serif;">What your full reading looks like</div><div style="font-size:12px;color:rgba(245,243,250,0.5);margin-bottom:10px;line-height:1.6;">Built from your exact birth data — this is a preview.</div><button onclick="document.getElementById(\'nora-sample-overlay\').style.display=\'flex\'" style="background:transparent;border:1px solid rgba(201,169,233,0.35);color:rgba(201,169,233,0.8);font-family:\'Plus Jakarta Sans\',sans-serif;font-size:11px;letter-spacing:0.1em;padding:8px 16px;border-radius:99px;cursor:pointer;">See your preview →</button></div>';
     chat.insertBefore(sampleEl, typing);
 
     if (!document.getElementById('nora-sample-overlay')) {
+      const name = userData.name || 'You';
+      const element = sajuResults && sajuResults.pillars && sajuResults.pillars.day ? sajuResults.pillars.day.tg : 'Unknown';
+      const missing = sajuResults && sajuResults.bubbles ? sajuResults.bubbles.missing_element || '' : '';
+      const pctData = sajuResults && sajuResults.bubbles ? sajuResults.bubbles : {};
+      const pcts = {
+        Wood: pctData.pct_wood || 0,
+        Fire: pctData.pct_fire || 0,
+        Earth: pctData.pct_earth || 0,
+        Metal: pctData.pct_metal || 0,
+        Water: pctData.pct_water || 0,
+      };
+      const elColors = {
+        Wood: 'linear-gradient(90deg,#4A9A38,#7ABD60)',
+        Fire: 'linear-gradient(90deg,#C04040,#E06060)',
+        Earth: 'linear-gradient(90deg,#A07830,#C8A050)',
+        Metal: 'linear-gradient(90deg,#9880C0,#C9A9E9)',
+        Water: 'linear-gradient(90deg,#3060A8,#5888D0)',
+      };
+      const missingDesc = {
+        Wood: 'growth, direction, the instinct to reach outward.',
+        Fire: 'warmth, expression, and the drive to be seen.',
+        Earth: 'stability, groundedness, and the ability to slow down.',
+        Metal: 'structure, boundaries, and the ability to let go.',
+        Water: 'depth, intuition, and the space to be still.',
+      };
+
+      // 오행 바 HTML 생성
+      let barsHtml = '';
+      Object.keys(pcts).forEach(function(el) {
+        const pct = pcts[el];
+        const isMissing = missing === el;
+        const w = isMissing ? '3px' : (pct + '%');
+        const col = elColors[el];
+        const op = isMissing ? '0.25' : '0.4';
+        barsHtml += '<div style="display:table;width:100%;margin-bottom:8px;">' +
+          '<div style="display:table-row;">' +
+          '<div style="display:table-cell;width:46px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,243,250,' + op + ');vertical-align:middle;">' + el + '</div>' +
+          '<div style="display:table-cell;vertical-align:middle;padding:0 10px;">' +
+          '<div style="height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + w + ';background:' + col + ';border-radius:99px;"></div>' +
+          '</div></div>' +
+          '<div style="display:table-cell;width:28px;font-size:10px;color:rgba(245,243,250,0.3);text-align:right;vertical-align:middle;">' + (isMissing ? '0%' : pct + '%') + '</div>' +
+          '</div></div>';
+      });
+
+      // missing element note
+      let missingNote = '';
+      if (missing && missingDesc[missing]) {
+        missingNote = '<div style="font-size:11px;color:rgba(201,169,233,0.55);margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,169,233,0.08);line-height:1.6;">✶ Missing Element: ' + missing + ' — ' + missingDesc[missing] + '</div>';
+      }
+
+      // tags
+      const tags = ['The pattern underneath','Love timing','Wealth windows','Career arc','Energy rhythm','Lucky cycles'];
+      let tagsHtml = '';
+      tags.forEach(function(t) {
+        tagsHtml += '<div style="background:rgba(201,169,233,0.08);border:1px solid rgba(201,169,233,0.15);border-radius:6px;padding:6px 10px;font-size:11px;color:rgba(245,243,250,0.45);">' + t + '</div>';
+      });
+
       const overlay = document.createElement('div');
       overlay.id = 'nora-sample-overlay';
       overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:999;background:rgba(10,9,18,0.85);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;';
-      overlay.innerHTML = `
-        <div style="background:#12111A;border:1px solid rgba(201,169,233,0.2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:40px;">
-          <div style="position:sticky;top:0;background:#12111A;padding:14px 16px 10px;border-bottom:1px solid rgba(201,169,233,0.08);display:flex;justify-content:space-between;align-items:center;z-index:1;">
-            <span style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);">Sample Reading</span>
-            <button onclick="document.getElementById('nora-sample-overlay').style.display='none'" style="background:transparent;border:none;color:rgba(245,243,250,0.4);font-size:20px;cursor:pointer;line-height:1;">×</button>
-          </div>
-          <div style="padding:20px;font-family:'Plus Jakarta Sans',sans-serif;">
-            <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:16px;">Full Saju Reading</div>
-            <div style="font-family:'Georgia',serif;font-style:italic;font-size:22px;color:rgba(245,243,250,0.95);margin-bottom:6px;">You don't burn out. You erode.</div>
-            <div style="font-size:12px;color:rgba(201,169,233,0.6);margin-bottom:20px;">J · Yin Metal Day Master</div>
-            <div style="border-left:2px solid rgba(201,169,233,0.35);padding:12px 16px;background:rgba(201,169,233,0.04);border-radius:0 6px 6px 0;margin-bottom:20px;">
-              <div style="font-family:'Georgia',serif;font-style:italic;font-size:14px;color:rgba(245,243,250,0.9);line-height:1.65;margin-bottom:8px;">You adapt faster than everyone else. Then get stuck being the one who understands while no one bothers to understand you.</div>
-              <div style="font-family:'Georgia',serif;font-style:italic;font-size:14px;color:rgba(201,169,233,0.85);line-height:1.65;">That's not your personality. It's what happened when you stopped expecting people to meet you halfway.</div>
-            </div>
-            <div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:16px;">
-              <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:12px;">Energy Distribution</div>
-              ${['Wood:0%:3px:#4A9A38:#7ABD60','Fire:38%:38%:#C04040:#E06060','Earth:37%:37%:#A07830:#C8A050','Metal:13%:13%:#9880C0:#C9A9E9','Water:12%:12%:#3060A8:#5888D0'].map(el => {
-                const [name,pct,w,c1,c2] = el.split(':');
-                return '<div style="display:table;width:100%;margin-bottom:8px;"><div style="display:table-row;"><div style="display:table-cell;width:46px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,243,250,0.35);vertical-align:middle;">' + name + '</div><div style="display:table-cell;vertical-align:middle;padding:0 10px;"><div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;"><div style="height:100%;width:' + w + ';background:linear-gradient(90deg,' + c1 + ',' + c2 + ');border-radius:99px;"></div></div></div><div style="display:table-cell;width:28px;font-size:10px;color:rgba(245,243,250,0.3);text-align:right;vertical-align:middle;">' + pct + '</div></div></div>';
-              }).join('')}
-              <div style="font-size:11px;color:rgba(201,169,233,0.5);margin-top:8px;padding-top:8px;border-top:1px solid rgba(201,169,233,0.08);line-height:1.6;">Missing Element: Wood — growth, direction, the instinct to reach outward. You seek it in partners and environments without realizing it.</div>
-            </div>
-            <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.4);margin-bottom:8px;">The Pattern Underneath</div>
-            <div style="font-size:13px;color:rgba(245,243,250,0.6);line-height:1.75;margin-bottom:16px;">Your Yin Metal sitting on Yin Earth means you're structurally a container — you absorb, refine, and stabilize what enters your field. With Fire dominant above and below, you're being constantly pressured to perform warmth that doesn't come naturally.</div>
-            <div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:20px;">
-              <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.4);margin-bottom:8px;">Also includes</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                ${['Love timing','Wealth windows','Career arc','Energy rhythm','Lucky cycles'].map(t => '<div style="background:rgba(201,169,233,0.08);border:1px solid rgba(201,169,233,0.15);border-radius:6px;padding:6px 10px;font-size:11px;color:rgba(245,243,250,0.45);">' + t + '</div>').join('')}
-              </div>
-            </div>
-            <div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.2);border-radius:8px;padding:16px;text-align:center;">
-              <div style="font-family:'Georgia',serif;font-style:italic;font-size:13px;color:rgba(201,169,233,0.8);margin-bottom:4px;">Your version is built from your exact birth data.</div>
-              <div style="font-size:11px;color:rgba(245,243,250,0.3);">This is a sample — real readings go much deeper.</div>
-            </div>
-          </div>
-        </div>
-      `;
-      overlay.addEventListener('click', (e) => {
+      overlay.innerHTML =
+        '<div style="background:#12111A;border:1px solid rgba(201,169,233,0.2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:40px;">' +
+        '<div style="position:sticky;top:0;background:#12111A;padding:14px 16px 10px;border-bottom:1px solid rgba(201,169,233,0.08);display:flex;justify-content:space-between;align-items:center;z-index:1;">' +
+        '<span style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);">' + name + "'s Reading — Preview</span>" +
+        '<button onclick="var o=document.getElementById(&quot;nora-sample-overlay&quot;);if(o)o.style.display=&quot;none&quot;;" style="background:transparent;border:none;color:rgba(245,243,250,0.4);font-size:20px;cursor:pointer;line-height:1;">×</button>' +
+        '</div>' +
+        '<div style="padding:20px;font-family:\'Plus Jakarta Sans\',sans-serif;">' +
+        '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:12px;">Full Saju Reading</div>' +
+        '<div style="font-size:13px;color:rgba(201,169,233,0.7);margin-bottom:16px;">' + name + ' · ' + element + ' Day Master</div>' +
+        '<div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:16px;">' +
+        '<div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:12px;">Energy Distribution</div>' +
+        barsHtml + missingNote +
+        '</div>' +
+        '<div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:16px;">' +
+        '<div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.4);margin-bottom:8px;">Also in your reading</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + tagsHtml + '</div>' +
+        '</div>' +
+        '<div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.2);border-radius:8px;padding:16px;text-align:center;">' +
+        '<div style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:rgba(201,169,233,0.8);margin-bottom:4px;">The full reading goes much deeper than this.</div>' +
+        '<div style="font-size:11px;color:rgba(245,243,250,0.3);">Every sentence traces back to your exact chart.</div>' +
+        '</div></div></div>';
+
+      overlay.addEventListener('click', function(e) {
         if (e.target === overlay) overlay.style.display = 'none';
       });
       document.body.appendChild(overlay);
     }
 
     scrollToBottom();
-  }
-
-
-  // ── 이메일 캡처 — 결제 전 무료 구독 유도 ─────────────────
-  async function emailCaptureFlow(onComplete) {
-    const lastEmail = userData.lastEmail || localStorage.getItem('nora_last_email') || '';
-    if (lastEmail) {
-      // 이미 이메일 있으면 바로 다음으로
-      await onComplete();
-      return;
-    }
-    await showTyping(600);
-    addMessage("Want me to send you a weekly reading? It's free.", 'nora');
-    showChoices(['Yes — send it', 'Skip for now'], async (choice) => {
-      if (choice === 'Yes — send it') {
-        await showTyping(400);
-        addMessage("What's your email?", 'nora');
-        showTextInput('Your email', async (email) => {
-          if (!email || !email.includes('@')) {
-            await showTyping(300);
-            addMessage("Try that again?", 'nora');
-            showTextInput('Your email', async (email2) => {
-              if (email2 && email2.includes('@')) {
-                userData.lastEmail = email2;
-                localStorage.setItem('nora_last_email', email2);
-                // 백그라운드로 weekly subscribe 전송
-                try {
-                  await fetch(WEEKLY_WEBHOOK_URL, {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ type:'weekly_subscribe', email: email2, name: userData.name,
-                      element: sajuResults?.pillars?.day?.tg || 'Unknown',
-                      birthday: userData.birthday, timezone: userData.timezone })
-                  });
-                } catch(e) {}
-                await showTyping(400);
-                addMessage("Got it. First one comes this week.", 'nora');
-              }
-              await onComplete();
-            }, false);
-            return;
-          }
-          userData.lastEmail = email;
-          localStorage.setItem('nora_last_email', email);
-          try {
-            await fetch(WEEKLY_WEBHOOK_URL, {
-              method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ type:'weekly_subscribe', email, name: userData.name,
-                element: sajuResults?.pillars?.day?.tg || 'Unknown',
-                birthday: userData.birthday, timezone: userData.timezone })
-            });
-          } catch(e) {}
-          await showTyping(400);
-          addMessage("Got it. First one comes this week.", 'nora');
-          await onComplete();
-        }, false);
-      } else {
-        await onComplete();
-      }
-    });
-  }
-
-  function showRestartOption() {
-    setTimeout(() => {
-      showChoices(['Start over'], async () => {
-        await showMainOptions(false);
-      });
-    }, 500);
   }
 
   function showStartOverInput() {
