@@ -559,13 +559,24 @@
       const name = userData.name || 'You';
       const element = sajuResults && sajuResults.pillars && sajuResults.pillars.day ? sajuResults.pillars.day.tg : 'Unknown';
       const missing = sajuResults && sajuResults.bubbles ? sajuResults.bubbles.missing_element || '' : '';
-      const pctData = sajuResults && sajuResults.bubbles ? sajuResults.bubbles : {};
+      // pillars에서 오행 분포 계산
+      const tgMap = {'甲':'Wood','乙':'Wood','丙':'Fire','丁':'Fire','戊':'Earth','己':'Earth','庚':'Metal','辛':'Metal','壬':'Water','癸':'Water'};
+      const dzMap = {'寅':'Wood','卯':'Wood','亥':'Water','子':'Water','巳':'Fire','午':'Fire','申':'Metal','酉':'Metal','丑':'Earth','辰':'Earth','未':'Earth','戌':'Earth'};
+      const counts = {Wood:0,Fire:0,Earth:0,Metal:0,Water:0};
+      const pillars = sajuResults && sajuResults.pillars ? sajuResults.pillars : {};
+      ['year','month','day','hour'].forEach(function(p) {
+        if (pillars[p]) {
+          const tgEl = tgMap[pillars[p].tg_char]; if (tgEl) counts[tgEl]++;
+          const dzEl = dzMap[pillars[p].dz_char]; if (dzEl) counts[dzEl]++;
+        }
+      });
+      const total = Object.values(counts).reduce(function(a,b){return a+b;},0) || 1;
       const pcts = {
-        Wood: pctData.pct_wood || 0,
-        Fire: pctData.pct_fire || 0,
-        Earth: pctData.pct_earth || 0,
-        Metal: pctData.pct_metal || 0,
-        Water: pctData.pct_water || 0,
+        Wood: Math.round(counts.Wood/total*100),
+        Fire: Math.round(counts.Fire/total*100),
+        Earth: Math.round(counts.Earth/total*100),
+        Metal: Math.round(counts.Metal/total*100),
+        Water: Math.round(counts.Water/total*100),
       };
       const elColors = {
         Wood: 'linear-gradient(90deg,#4A9A38,#7ABD60)',
