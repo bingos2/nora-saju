@@ -566,12 +566,40 @@
       overlay.id = 'nora-sample-overlay';
       overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:999;background:rgba(10,9,18,0.85);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;';
       overlay.innerHTML = `
-        <div style="background:#12111A;border:1px solid rgba(201,169,233,0.2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:24px;">
+        <div style="background:#12111A;border:1px solid rgba(201,169,233,0.2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:40px;">
           <div style="position:sticky;top:0;background:#12111A;padding:14px 16px 10px;border-bottom:1px solid rgba(201,169,233,0.08);display:flex;justify-content:space-between;align-items:center;z-index:1;">
             <span style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.5);">Sample Reading</span>
             <button onclick="document.getElementById('nora-sample-overlay').style.display='none'" style="background:transparent;border:none;color:rgba(245,243,250,0.4);font-size:20px;cursor:pointer;line-height:1;">×</button>
           </div>
-          <iframe src="/nora-sample-report.html" style="width:100%;height:75vh;border:none;" scrolling="yes"></iframe>
+          <div style="padding:20px;font-family:'Plus Jakarta Sans',sans-serif;">
+            <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:16px;">Full Saju Reading</div>
+            <div style="font-family:'Georgia',serif;font-style:italic;font-size:22px;color:rgba(245,243,250,0.95);margin-bottom:6px;">You don't burn out. You erode.</div>
+            <div style="font-size:12px;color:rgba(201,169,233,0.6);margin-bottom:20px;">J · Yin Metal Day Master</div>
+            <div style="border-left:2px solid rgba(201,169,233,0.35);padding:12px 16px;background:rgba(201,169,233,0.04);border-radius:0 6px 6px 0;margin-bottom:20px;">
+              <div style="font-family:'Georgia',serif;font-style:italic;font-size:14px;color:rgba(245,243,250,0.9);line-height:1.65;margin-bottom:8px;">You adapt faster than everyone else. Then get stuck being the one who understands while no one bothers to understand you.</div>
+              <div style="font-family:'Georgia',serif;font-style:italic;font-size:14px;color:rgba(201,169,233,0.85);line-height:1.65;">That's not your personality. It's what happened when you stopped expecting people to meet you halfway.</div>
+            </div>
+            <div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:16px;">
+              <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.45);margin-bottom:12px;">Energy Distribution</div>
+              ${['Wood:0%:3px:#4A9A38:#7ABD60','Fire:38%:38%:#C04040:#E06060','Earth:37%:37%:#A07830:#C8A050','Metal:13%:13%:#9880C0:#C9A9E9','Water:12%:12%:#3060A8:#5888D0'].map(el => {
+                const [name,pct,w,c1,c2] = el.split(':');
+                return '<div style="display:table;width:100%;margin-bottom:8px;"><div style="display:table-row;"><div style="display:table-cell;width:46px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,243,250,0.35);vertical-align:middle;">' + name + '</div><div style="display:table-cell;vertical-align:middle;padding:0 10px;"><div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;"><div style="height:100%;width:' + w + ';background:linear-gradient(90deg,' + c1 + ',' + c2 + ');border-radius:99px;"></div></div></div><div style="display:table-cell;width:28px;font-size:10px;color:rgba(245,243,250,0.3);text-align:right;vertical-align:middle;">' + pct + '</div></div></div>';
+              }).join('')}
+              <div style="font-size:11px;color:rgba(201,169,233,0.5);margin-top:8px;padding-top:8px;border-top:1px solid rgba(201,169,233,0.08);line-height:1.6;">Missing Element: Wood — growth, direction, the instinct to reach outward. You seek it in partners and environments without realizing it.</div>
+            </div>
+            <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.4);margin-bottom:8px;">The Pattern Underneath</div>
+            <div style="font-size:13px;color:rgba(245,243,250,0.6);line-height:1.75;margin-bottom:16px;">Your Yin Metal sitting on Yin Earth means you're structurally a container — you absorb, refine, and stabilize what enters your field. With Fire dominant above and below, you're being constantly pressured to perform warmth that doesn't come naturally.</div>
+            <div style="background:rgba(201,169,233,0.04);border:1px solid rgba(201,169,233,0.1);border-radius:8px;padding:14px;margin-bottom:20px;">
+              <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(201,169,233,0.4);margin-bottom:8px;">Also includes</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${['Love timing','Wealth windows','Career arc','Energy rhythm','Lucky cycles'].map(t => '<div style="background:rgba(201,169,233,0.08);border:1px solid rgba(201,169,233,0.15);border-radius:6px;padding:6px 10px;font-size:11px;color:rgba(245,243,250,0.45);">' + t + '</div>').join('')}
+              </div>
+            </div>
+            <div style="background:rgba(201,169,233,0.06);border:1px solid rgba(201,169,233,0.2);border-radius:8px;padding:16px;text-align:center;">
+              <div style="font-family:'Georgia',serif;font-style:italic;font-size:13px;color:rgba(201,169,233,0.8);margin-bottom:4px;">Your version is built from your exact birth data.</div>
+              <div style="font-size:11px;color:rgba(245,243,250,0.3);">This is a sample — real readings go much deeper.</div>
+            </div>
+          </div>
         </div>
       `;
       overlay.addEventListener('click', (e) => {
@@ -640,6 +668,14 @@
         await onComplete();
       }
     });
+  }
+
+  function showRestartOption() {
+    setTimeout(() => {
+      showChoices(['Start over'], async () => {
+        await showMainOptions(false);
+      });
+    }, 500);
   }
 
   function showStartOverInput() {
@@ -779,16 +815,15 @@
     await showTyping(700);
     addMessage("Built from the exact moment you were born.", 'nora');
     await showTyping(900);
-    addMessage("People come here when something feels off", 'nora');
-    await showTyping(400);
-    addMessage("and they want a real answer — not a vague one.", 'nora');
-    showChoices(["Yeah", "Not really"], async (openChoice) => {
-      if (openChoice === "Yeah") {
+    addMessage("People come here when something feels off.", 'nora');
+    await showTyping(600);
+    showChoices(["Yeah, that's me", "Just curious"], async (openChoice) => {
+      if (openChoice === "Yeah, that's me") {
         await showTyping(500);
         addMessage("I thought so. What should I call you?", 'nora');
       } else {
         await showTyping(500);
-        addMessage("Fair. What should I call you?", 'nora');
+        addMessage("Fair enough. What should I call you?", 'nora');
       }
       showTextInput('Your name', async (name) => {
         userData.name = name;
@@ -1296,7 +1331,7 @@
           } else {
             await showTyping(500);
             addMessage("I'll be here.", 'nora');
-                showPersistentInput();
+                showRestartOption();
           }
         });
       };
@@ -1455,7 +1490,7 @@
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                showPersistentInput();
+                showRestartOption();
               }
             });
           } else {
@@ -1478,7 +1513,7 @@
               } else {
                 await showTyping(500);
                 addMessage("I'll be here.", 'nora');
-                showPersistentInput();
+                showRestartOption();
               }
             });
           }
@@ -1557,6 +1592,7 @@
           else {
             await showTyping(500);
             addMessage("Take care of yourself. Your chart is watching.", 'nora');
+            showRestartOption();
           }
         });
       }
@@ -1619,15 +1655,9 @@
       await showTyping(600);
       addMessage(`${ud.name}'s chart is ready.`, 'nora');
       await showTyping(600);
-      addMessage("This is built from your exact birth data.", 'nora');
-      await showTyping(400);
-      addMessage("No one else gets this reading.", 'nora');
-      await showTyping(800);
-      addMessage("What I showed you is the surface.", 'nora');
-      await showTyping(500);
-      addMessage("The full reading goes into why your patterns keep repeating,", 'nora');
-      await showTyping(400);
-      addMessage("what's actually moving in your chart right now, and what's coming.", 'nora');
+      addMessage("This is built from your exact birth data. No one else gets this reading.", 'nora');
+      await showTyping(700);
+      addMessage("What I showed you is the surface. The full reading goes into why your patterns keep repeating.", 'nora');
       await showTyping(500);
     }
 
@@ -1873,6 +1903,10 @@
         await generateTodayReading(userData);
       } else if (endChoice === 'Ask a question') {
         await showMainOptions(false);
+      } else {
+        await showTyping(400);
+        addMessage("Your chart isn't going anywhere.", 'nora');
+        showRestartOption();
       }
     });
   }
@@ -1929,7 +1963,7 @@
       await showTyping(500);
       addMessage("Do you know their birthday?", 'nora');
       showChoices(['Yes, I have it', 'No'], async (choice) => {
-        if (choice === 'No') { await showTyping(500); addMessage("Come back when you have it — your chart isn't going anywhere.", 'nora'); showPersistentInput(); return; }
+        if (choice === 'No') { await showTyping(500); addMessage("Come back when you have it — your chart isn't going anywhere.", 'nora'); showRestartOption(); return; }
         const months = Array.from({length:12},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
         const days   = Array.from({length:31},(_,i)=>({value:String(i+1).padStart(2,'0'),label:String(i+1).padStart(2,'0')}));
         const years  = [];
