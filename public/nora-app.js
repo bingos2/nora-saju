@@ -46,6 +46,32 @@
     compatibility_full: '2.00'
   };
 
+  // ── 핵심 상태 변수 ─────────────────────────────────────
+  let conversationStarted = false;
+  let sajuResults = null;
+  let userData = {
+    name: '', birthday: '', birthday_confirmed: false,
+    state: '', stateConfirmed: false,
+    timezone: 'America/New_York', timezone_short: 'EST',
+    birth_time: 'unknown', lastEmail: '', pendingQuestion: ''
+  };
+
+  // ── DOM 요소 ───────────────────────────────────────────
+  const chat        = document.getElementById('chat');
+  const choices     = document.getElementById('choices');
+  const inputArea   = document.getElementById('inputArea');
+  const coverScreen = document.getElementById('coverScreen');
+  const dmScreen    = document.getElementById('dmScreen');
+  const startBtn    = document.getElementById('startBtn');
+  const backBtn     = document.getElementById('backBtn');
+  let   typing      = document.getElementById('typing');
+
+  // ── Webhook URLs ───────────────────────────────────────
+  const FREE_WEBHOOK_URL    = 'https://hook.us2.make.com/fjivuprpif5r1asrcclnp1lvelgcc1ms';
+  const CHAT_WEBHOOK_URL    = 'https://hook.us2.make.com/oa5q85zc125iese4u31tmm88c7o6kz0g';
+  const PAID_WEBHOOK_URL    = 'https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59';
+  const WEEKLY_WEBHOOK_URL  = 'https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp';
+
   // ── 구매 플래그 ────────────────────────────────────────
   function markFullReadingPurchased()  { localStorage.setItem('nora_purchased_full', 'true'); }
   function markLoveSectorPurchased()   { localStorage.setItem('nora_purchased_love', 'true'); }
