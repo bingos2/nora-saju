@@ -72,6 +72,59 @@
   const PAID_WEBHOOK_URL    = 'https://hook.us2.make.com/dz3pmqu48qix5rtjadzc708ar3hhzm59';
   const WEEKLY_WEBHOOK_URL  = 'https://hook.us2.make.com/zkv7l1s3v1p7bwo9cc3g0ef43vfm6gtp';
 
+  // ── 미국 주 데이터 ─────────────────────────────────────
+  const US_STATES = [
+    {code:'AL',name:'Alabama'},{code:'AK',name:'Alaska'},{code:'AZ',name:'Arizona'},
+    {code:'AR',name:'Arkansas'},{code:'CA',name:'California'},{code:'CO',name:'Colorado'},
+    {code:'CT',name:'Connecticut'},{code:'DE',name:'Delaware'},{code:'FL',name:'Florida'},
+    {code:'GA',name:'Georgia'},{code:'HI',name:'Hawaii'},{code:'ID',name:'Idaho'},
+    {code:'IL',name:'Illinois'},{code:'IN',name:'Indiana'},{code:'IA',name:'Iowa'},
+    {code:'KS',name:'Kansas'},{code:'KY',name:'Kentucky'},{code:'LA',name:'Louisiana'},
+    {code:'ME',name:'Maine'},{code:'MD',name:'Maryland'},{code:'MA',name:'Massachusetts'},
+    {code:'MI',name:'Michigan'},{code:'MN',name:'Minnesota'},{code:'MS',name:'Mississippi'},
+    {code:'MO',name:'Missouri'},{code:'MT',name:'Montana'},{code:'NE',name:'Nebraska'},
+    {code:'NV',name:'Nevada'},{code:'NH',name:'New Hampshire'},{code:'NJ',name:'New Jersey'},
+    {code:'NM',name:'New Mexico'},{code:'NY',name:'New York'},{code:'NC',name:'North Carolina'},
+    {code:'ND',name:'North Dakota'},{code:'OH',name:'Ohio'},{code:'OK',name:'Oklahoma'},
+    {code:'OR',name:'Oregon'},{code:'PA',name:'Pennsylvania'},{code:'RI',name:'Rhode Island'},
+    {code:'SC',name:'South Carolina'},{code:'SD',name:'South Dakota'},{code:'TN',name:'Tennessee'},
+    {code:'TX',name:'Texas'},{code:'UT',name:'Utah'},{code:'VT',name:'Vermont'},
+    {code:'VA',name:'Virginia'},{code:'WA',name:'Washington'},{code:'WV',name:'West Virginia'},
+    {code:'WI',name:'Wisconsin'},{code:'WY',name:'Wyoming'},{code:'DC',name:'Washington D.C.'}
+  ];
+
+  const STATE_TIMEZONE = {
+    'AL':'America/Chicago','AK':'America/Anchorage','AZ':'America/Phoenix',
+    'AR':'America/Chicago','CA':'America/Los_Angeles','CO':'America/Denver',
+    'CT':'America/New_York','DE':'America/New_York','FL':'America/New_York',
+    'GA':'America/New_York','HI':'Pacific/Honolulu','ID':'America/Denver',
+    'IL':'America/Chicago','IN':'America/Indiana/Indianapolis','IA':'America/Chicago',
+    'KS':'America/Chicago','KY':'America/New_York','LA':'America/Chicago',
+    'ME':'America/New_York','MD':'America/New_York','MA':'America/New_York',
+    'MI':'America/Detroit','MN':'America/Chicago','MS':'America/Chicago',
+    'MO':'America/Chicago','MT':'America/Denver','NE':'America/Chicago',
+    'NV':'America/Los_Angeles','NH':'America/New_York','NJ':'America/New_York',
+    'NM':'America/Denver','NY':'America/New_York','NC':'America/New_York',
+    'ND':'America/Chicago','OH':'America/New_York','OK':'America/Chicago',
+    'OR':'America/Los_Angeles','PA':'America/New_York','RI':'America/New_York',
+    'SC':'America/New_York','SD':'America/Chicago','TN':'America/Chicago',
+    'TX':'America/Chicago','UT':'America/Denver','VT':'America/New_York',
+    'VA':'America/New_York','WA':'America/Los_Angeles','WV':'America/New_York',
+    'WI':'America/Chicago','WY':'America/Denver','DC':'America/New_York'
+  };
+
+  const STATE_SHORT = {
+    'AL':'CST','AK':'AKST','AZ':'MST','AR':'CST','CA':'PST','CO':'MST',
+    'CT':'EST','DE':'EST','FL':'EST','GA':'EST','HI':'HST','ID':'MST',
+    'IL':'CST','IN':'EST','IA':'CST','KS':'CST','KY':'EST','LA':'CST',
+    'ME':'EST','MD':'EST','MA':'EST','MI':'EST','MN':'CST','MS':'CST',
+    'MO':'CST','MT':'MST','NE':'CST','NV':'PST','NH':'EST','NJ':'EST',
+    'NM':'MST','NY':'EST','NC':'EST','ND':'CST','OH':'EST','OK':'CST',
+    'OR':'PST','PA':'EST','RI':'EST','SC':'EST','SD':'CST','TN':'CST',
+    'TX':'CST','UT':'MST','VT':'EST','VA':'EST','WA':'PST','WV':'EST',
+    'WI':'CST','WY':'MST','DC':'EST'
+  };
+
   // ── 구매 플래그 ────────────────────────────────────────
   function markFullReadingPurchased()  { localStorage.setItem('nora_purchased_full', 'true'); }
   function markLoveSectorPurchased()   { localStorage.setItem('nora_purchased_love', 'true'); }
